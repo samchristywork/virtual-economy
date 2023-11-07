@@ -11,3 +11,41 @@ body {
   border: 1px solid #444;
   min-width: 500px;
 }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table td,
+table th {
+  padding: 0.5rem;
+  border: 1px solid #444;
+}
+
+table th {
+  background: #555;
+  text-align: left;
+}
+
+table tr:nth-child(even) {
+  background: #444;
+}
+
+table tr:nth-child(odd) {
+  background: #333;
+}
+
+table tr:hover {
+  background: #222;
+}
+
+table tr td:first-child {
+  border-top-left-radius: 0.3rem;
+  border-bottom-left-radius: 0.3rem;
+}
+
+table tr td:last-child {
+  border-top-right-radius: 0.3rem;
+  border-bottom-right-radius: 0.3rem;
+}
