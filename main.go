@@ -13,6 +13,19 @@ type user struct {
 	balance    string
 }
 
+func generateUserHTML(users []user) string {
+	result := ""
+	for _, user := range users {
+		fmt.Println(user)
+		result += fmt.Sprintf(`<tr>
+			<td>%s</td>
+			<td>%s</td>
+			<td>%s</td>
+		</tr>`, user.username, user.registered, user.balance)
+	}
+	return result
+}
+
 func getUsersFromDB(db *sql.DB) []user {
 	sqlite3.Version()
 
@@ -62,6 +75,18 @@ func startServer() {
 
 	fmt.Println("Listening on port 8080")
 
+	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `<table>
+		<thead>
+			<tr>
+				<th>Username</th>
+				<th>Registered</th>
+				<th>Balance</th>
+			</tr>
+		</thead>
+		%s
+	</table>`, generateUserHTML(users))
+	})
 	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("static"))))
 
 	http.ListenAndServe(":8080", nil)
