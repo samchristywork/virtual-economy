@@ -1,0 +1,13 @@
+body {
+  background: #222;
+  color: #ccc;
+}
+
+.container {
+  background: #333;
+  padding: 1rem;
+  margin: 1rem auto;
+  border-radius: 0.5rem;
+  border: 1px solid #444;
+  min-width: 500px;
+}
