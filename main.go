@@ -3,8 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/mattn/go-sqlite3"
 	"net/http"
+
+	"github.com/mattn/go-sqlite3"
 )
 
 type user struct {
@@ -29,7 +30,9 @@ func generateUserHTML(users []user) string {
 func getUsersFromDB(db *sql.DB) []user {
 	sqlite3.Version()
 
-	rows, err := db.Query("select username, registered, balance from users")
+	rows, err := db.Query(`
+	select users.username, registered, coalesce(balance, 0) from users
+	left join balances on users.username = balances.username`)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -54,18 +57,23 @@ func getDB() *sql.DB {
 	return db
 }
 
-func createUsersTable(db *sql.DB) {
-	sqlStmt := `
-	create table if not exists users (
-		username text not null primary key,
-		registered text not null,
-		balance text not null
-	);
-	`
+func runSQL(db *sql.DB, sqlStmt string) {
 	_, err := db.Exec(sqlStmt)
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func createUsersTable(db *sql.DB) {
+	runSQL(db, `create table if not exists users (
+		username text not null primary key,
+		registered text not null
+	);`)
+
+	runSQL(db, `create table if not exists balances (
+		username text not null primary key,
+		balance text not null
+	);`)
 }
 
 func startServer() {
