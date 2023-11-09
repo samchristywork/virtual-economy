@@ -15,6 +15,12 @@
     <div id="table" hx-get="/users" hx-trigger="load">
       <p>Loading.</p>
     </div>
+
+    <form hx-post="/adduser" hx-trigger="submit" hx-target="#table">
+      <input type="text" name="username" placeholder="username">
+      <input type="text" name="registered" placeholder="registered">
+      <input type="text" name="balance" placeholder="balance">
+      <input type="submit" value="Add User">
   </div>
 </body>
 
