@@ -11,7 +11,7 @@ import (
 type user struct {
 	username   string
 	registered string
-	balance    string
+	balance    float64
 }
 
 func generateUserHTML(users []user) string {
@@ -21,7 +21,7 @@ func generateUserHTML(users []user) string {
 		result += fmt.Sprintf(`<tr>
 			<td>%s</td>
 			<td>%s</td>
-			<td>%s</td>
+			<td>%f</td>
 		</tr>`, user.username, user.registered, user.balance)
 	}
 	return result
@@ -39,7 +39,8 @@ func getUsersFromDB(db *sql.DB) []user {
 
 	var users []user
 	for rows.Next() {
-		var username, registered, balance string
+		var username, registered string
+		var balance float64
 		err = rows.Scan(&username, &registered, &balance)
 		if err != nil {
 			panic(err.Error())
@@ -100,7 +101,12 @@ func startServer() {
 		registered := r.FormValue("registered")
 		balance := r.FormValue("balance")
 		fmt.Println(username, registered, balance)
-		_, err := db.Exec("insert into users (username, registered, balance) values (?, ?, ?)", username, registered, balance)
+		_, err := db.Exec("insert into users (username, registered) values (?, ?)", username, registered, balance)
+		if err != nil {
+			//panic(err.Error())
+		}
+
+		_, err = db.Exec("insert into balances (username, balance) values (?, ?)", username, balance)
 		if err != nil {
 			//panic(err.Error())
 		}
