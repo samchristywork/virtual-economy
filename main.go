@@ -87,6 +87,18 @@ func startServer() {
 		%s
 	</table>`, generateUserHTML(users))
 	})
+	http.HandleFunc("/adduser", func(w http.ResponseWriter, r *http.Request) {
+		username := r.FormValue("username")
+		registered := r.FormValue("registered")
+		balance := r.FormValue("balance")
+		fmt.Println(username, registered, balance)
+		_, err := db.Exec("insert into users (username, registered, balance) values (?, ?, ?)", username, registered, balance)
+		if err != nil {
+			//panic(err.Error())
+		}
+		users = getUsersFromDB(db)
+		http.Redirect(w, r, "/users", 301)
+	})
 	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("static"))))
 
 	http.ListenAndServe(":8080", nil)
