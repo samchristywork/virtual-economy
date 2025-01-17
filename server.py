@@ -56,3 +56,29 @@ def init_db():
             )
     conn.commit()
     conn.close()
+
+def send_json(handler, status, data):
+    body = json.dumps(data, indent=2).encode()
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Content-Length", len(body))
+    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.end_headers()
+    handler.wfile.write(body)
+
+def send_error(handler, status, message):
+    send_json(handler, status, {"error": message})
+
+class MarketHandler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        print(f"{self.address_string()} - {fmt % args}")
+
+    def read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length)
+        if not raw:
+            return {}
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return None
