@@ -42,5 +42,17 @@ def init_db():
             FOREIGN KEY (seller_id) REFERENCES users(id)
         );
     """)
+
+    for name in ("Alice", "Bob"):
+        conn.execute("INSERT OR IGNORE INTO users (name, balance) VALUES (?, 1000)", (name,))
+    conn.commit()
+
+    for name in ("Alice", "Bob"):
+        uid = conn.execute("SELECT id FROM users WHERE name = ?", (name,)).fetchone()["id"]
+        for asset in ("FOOD", "OIL", "WATER"):
+            conn.execute(
+                "INSERT OR IGNORE INTO holdings (user_id, asset, quantity) VALUES (?, ?, 50)",
+                (uid, asset),
+            )
     conn.commit()
     conn.close()
