@@ -139,3 +139,20 @@ class MarketHandler(BaseHTTPRequestHandler):
 
         else:
             send_error(self, 404, "Not found")
+
+    def do_POST(self):
+        data = self.read_body()
+        if data is None:
+            send_error(self, 400, "Invalid JSON")
+            return
+
+        parsed = urlparse(self.path)
+
+        if parsed.path == "/listings":
+            self._create_listing(data)
+        elif parsed.path == "/listings/cancel":
+            self._cancel_listing(data)
+        elif parsed.path == "/buy":
+            self._buy(data)
+        else:
+            send_error(self, 404, "Not found")
