@@ -82,3 +82,60 @@ class MarketHandler(BaseHTTPRequestHandler):
             return json.loads(raw)
         except json.JSONDecodeError:
             return None
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        if parsed.path in ("/", "/index.html"):
+            try:
+                with open("index.html", "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+            except FileNotFoundError:
+                send_error(self, 404, "index.html not found")
+
+        elif parsed.path == "/users":
+            with db_lock:
+                conn = get_db()
+                rows = conn.execute("SELECT id, name, balance FROM users").fetchall()
+                conn.close()
+            send_json(self, 200, [dict(r) for r in rows])
+
+        elif parsed.path == "/holdings":
+            user_id = params.get("user_id", [None])[0]
+            with db_lock:
+                conn = get_db()
+                if user_id:
+                    rows = conn.execute(
+                        "SELECT asset, quantity FROM holdings WHERE user_id = ? AND quantity > 0",
+                        (user_id,),
+                    ).fetchall()
+                else:
+                    rows = conn.execute("""
+                        SELECT u.name, h.asset, h.quantity
+                        FROM holdings h JOIN users u ON h.user_id = u.id
+                        WHERE h.quantity > 0
+                        ORDER BY u.name, h.asset
+                    """).fetchall()
+                conn.close()
+            send_json(self, 200, [dict(r) for r in rows])
+
+        elif parsed.path == "/listings":
+            with db_lock:
+                conn = get_db()
+                rows = conn.execute("""
+                    SELECT l.id, u.name AS seller, l.asset, l.quantity,
+                           l.price_per_share, l.created_at
+                    FROM listings l JOIN users u ON l.seller_id = u.id
+                    ORDER BY l.created_at DESC
+                """).fetchall()
+                conn.close()
+            send_json(self, 200, [dict(r) for r in rows])
+
+        else:
+            send_error(self, 404, "Not found")
