@@ -249,3 +249,93 @@ class MarketHandler(BaseHTTPRequestHandler):
                 send_error(self, 500, str(e))
             finally:
                 conn.close()
+
+    def _buy(self, data):
+        listing_id = data.get("listing_id")
+        buyer_id   = data.get("buyer_id")
+        quantity   = data.get("quantity")
+
+        if not all(v is not None for v in [listing_id, buyer_id, quantity]):
+            send_error(self, 400, "Required: listing_id, buyer_id, quantity")
+            return
+
+        try:
+            listing_id = int(listing_id)
+            buyer_id   = int(buyer_id)
+            quantity   = int(quantity)
+        except (ValueError, TypeError):
+            send_error(self, 400, "Invalid numeric values")
+            return
+
+        if quantity <= 0:
+            send_error(self, 400, "quantity must be positive")
+            return
+
+        with db_lock:
+            conn = get_db()
+            try:
+                listing = conn.execute(
+                    "SELECT * FROM listings WHERE id = ?", (listing_id,)
+                ).fetchone()
+
+                if not listing:
+                    send_error(self, 404, "Listing not found")
+                    return
+
+                if listing["seller_id"] == buyer_id:
+                    send_error(self, 400, "Cannot buy your own listing")
+                    return
+
+                if listing["quantity"] < quantity:
+                    send_error(self, 400, f"Only {listing['quantity']} shares available")
+                    return
+
+                total_cost = quantity * listing["price_per_share"]
+
+                buyer = conn.execute(
+                    "SELECT balance FROM users WHERE id = ?", (buyer_id,)
+                ).fetchone()
+
+                if not buyer:
+                    send_error(self, 404, "Buyer not found")
+                    return
+
+                if buyer["balance"] < total_cost:
+                    send_error(
+                        self, 400,
+                        f"Insufficient funds: need ${total_cost:.2f}, have ${buyer['balance']:.2f}",
+                    )
+                    return
+
+                conn.execute(
+                    "UPDATE users SET balance = balance - ? WHERE id = ?",
+                    (total_cost, buyer_id),
+                )
+                conn.execute(
+                    "UPDATE users SET balance = balance + ? WHERE id = ?",
+                    (total_cost, listing["seller_id"]),
+                )
+                conn.execute(
+                    "INSERT INTO holdings (user_id, asset, quantity) VALUES (?, ?, ?)"
+                    " ON CONFLICT(user_id, asset) DO UPDATE SET quantity = quantity + ?",
+                    (buyer_id, listing["asset"], quantity, quantity),
+                )
+
+                remaining = listing["quantity"] - quantity
+                if remaining == 0:
+                    conn.execute("DELETE FROM listings WHERE id = ?", (listing_id,))
+                else:
+                    conn.execute(
+                        "UPDATE listings SET quantity = ? WHERE id = ?",
+                        (remaining, listing_id),
+                    )
+
+                conn.commit()
+                send_json(self, 200, {
+                    "message": f"Bought {quantity} shares of {listing['asset']} for ${total_cost:.2f}"
+                })
+            except Exception as e:
+                conn.rollback()
+                send_error(self, 500, str(e))
+            finally:
+                conn.close()
