@@ -156,3 +156,56 @@ class MarketHandler(BaseHTTPRequestHandler):
             self._buy(data)
         else:
             send_error(self, 404, "Not found")
+
+    def _create_listing(self, data):
+        seller_id = data.get("seller_id")
+        asset     = data.get("asset")
+        quantity  = data.get("quantity")
+        price     = data.get("price_per_share")
+
+        if not all(v is not None for v in [seller_id, asset, quantity, price]):
+            send_error(self, 400, "Required: seller_id, asset, quantity, price_per_share")
+            return
+
+        try:
+            seller_id = int(seller_id)
+            quantity  = int(quantity)
+            price     = float(price)
+        except (ValueError, TypeError):
+            send_error(self, 400, "Invalid numeric values")
+            return
+
+        if quantity <= 0 or price <= 0:
+            send_error(self, 400, "quantity and price_per_share must be positive")
+            return
+
+        asset = str(asset).upper()
+
+        with db_lock:
+            conn = get_db()
+            try:
+                holding = conn.execute(
+                    "SELECT quantity FROM holdings WHERE user_id = ? AND asset = ?",
+                    (seller_id, asset),
+                ).fetchone()
+
+                if not holding or holding["quantity"] < quantity:
+                    available = holding["quantity"] if holding else 0
+                    send_error(self, 400, f"Insufficient holdings: have {available}, need {quantity}")
+                    return
+
+                conn.execute(
+                    "UPDATE holdings SET quantity = quantity - ? WHERE user_id = ? AND asset = ?",
+                    (quantity, seller_id, asset),
+                )
+                row = conn.execute(
+                    "INSERT INTO listings (seller_id, asset, quantity, price_per_share) VALUES (?, ?, ?, ?)",
+                    (seller_id, asset, quantity, price),
+                )
+                conn.commit()
+                send_json(self, 201, {"listing_id": row.lastrowid, "message": "Listing created"})
+            except Exception as e:
+                conn.rollback()
+                send_error(self, 500, str(e))
+            finally:
+                conn.close()
