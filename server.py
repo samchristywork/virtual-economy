@@ -339,3 +339,10 @@ class MarketHandler(BaseHTTPRequestHandler):
                 send_error(self, 500, str(e))
             finally:
                 conn.close()
+
+if __name__ == "__main__":
+    init_db()
+    port = 8000
+    server = HTTPServer(("0.0.0.0", port), MarketHandler)
+    print(f"Server running on http://localhost:{port}")
+    server.serve_forever()
