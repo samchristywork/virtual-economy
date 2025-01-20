@@ -154,6 +154,8 @@ class MarketHandler(BaseHTTPRequestHandler):
             self._cancel_listing(data)
         elif parsed.path == "/buy":
             self._buy(data)
+        elif parsed.path == "/consume":
+            self._consume(data)
         else:
             send_error(self, 404, "Not found")
 
@@ -334,6 +336,53 @@ class MarketHandler(BaseHTTPRequestHandler):
                 send_json(self, 200, {
                     "message": f"Bought {quantity} shares of {listing['asset']} for ${total_cost:.2f}"
                 })
+            except Exception as e:
+                conn.rollback()
+                send_error(self, 500, str(e))
+            finally:
+                conn.close()
+
+    def _consume(self, data):
+        user_id  = data.get("user_id")
+        asset    = data.get("asset")
+        quantity = data.get("quantity")
+
+        if not all(v is not None for v in [user_id, asset, quantity]):
+            send_error(self, 400, "Required: user_id, asset, quantity")
+            return
+
+        try:
+            user_id  = int(user_id)
+            quantity = int(quantity)
+        except (ValueError, TypeError):
+            send_error(self, 400, "Invalid numeric values")
+            return
+
+        if quantity <= 0:
+            send_error(self, 400, "quantity must be positive")
+            return
+
+        asset = str(asset).upper()
+
+        with db_lock:
+            conn = get_db()
+            try:
+                holding = conn.execute(
+                    "SELECT quantity FROM holdings WHERE user_id = ? AND asset = ?",
+                    (user_id, asset),
+                ).fetchone()
+
+                if not holding or holding["quantity"] < quantity:
+                    available = holding["quantity"] if holding else 0
+                    send_error(self, 400, f"Insufficient holdings: have {available}, need {quantity}")
+                    return
+
+                conn.execute(
+                    "UPDATE holdings SET quantity = quantity - ? WHERE user_id = ? AND asset = ?",
+                    (quantity, user_id, asset),
+                )
+                conn.commit()
+                send_json(self, 200, {"message": f"Consumed {quantity} units of {asset}"})
             except Exception as e:
                 conn.rollback()
                 send_error(self, 500, str(e))
