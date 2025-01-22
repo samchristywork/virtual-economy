@@ -156,6 +156,8 @@ class MarketHandler(BaseHTTPRequestHandler):
             self._buy(data)
         elif parsed.path == "/consume":
             self._consume(data)
+        elif parsed.path == "/reset":
+            self._reset()
         else:
             send_error(self, 404, "Not found")
 
@@ -388,6 +390,21 @@ class MarketHandler(BaseHTTPRequestHandler):
                 send_error(self, 500, str(e))
             finally:
                 conn.close()
+
+    def _reset(self):
+        with db_lock:
+            conn = get_db()
+            try:
+                conn.executescript("""
+                    DELETE FROM listings;
+                    DELETE FROM holdings;
+                    DELETE FROM users;
+                """)
+                conn.commit()
+            finally:
+                conn.close()
+        init_db()
+        send_json(self, 200, {"message": "Reset complete"})
 
 if __name__ == "__main__":
     init_db()
