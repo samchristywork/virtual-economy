@@ -148,8 +148,6 @@ class MarketHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/listings":
             self._create_listing(data)
-        elif parsed.path == "/cancel":
-            self._cancel_listing(data)
         elif parsed.path == "/buy":
             self._buy(data)
         elif parsed.path == "/consume":
@@ -211,45 +209,6 @@ class MarketHandler(BaseHTTPRequestHandler):
             finally:
                 conn.close()
 
-    def _cancel_listing(self, data):
-        listing_id = data.get("listing_id")
-        seller     = data.get("seller")
-
-        if not all(v is not None for v in [listing_id, seller]):
-            send_error(self, 400, "Required: listing_id, seller")
-            return
-
-        try:
-            listing_id = int(listing_id)
-        except (ValueError, TypeError):
-            send_error(self, 400, "Invalid numeric values")
-            return
-
-        with db_lock:
-            conn = get_db()
-            try:
-                listing = conn.execute(
-                    "SELECT * FROM listings WHERE id = ? AND seller_name = ?",
-                    (listing_id, seller),
-                ).fetchone()
-
-                if not listing:
-                    send_error(self, 404, "Listing not found or not owned by seller")
-                    return
-
-                conn.execute("DELETE FROM listings WHERE id = ?", (listing_id,))
-                conn.execute(
-                    "UPDATE holdings SET quantity = quantity + ? WHERE user_name = ? AND asset = ?",
-                    (listing["quantity"], seller, listing["asset"]),
-                )
-                conn.commit()
-                send_json(self, 200, {"message": "Listing cancelled, shares returned"})
-            except Exception as e:
-                conn.rollback()
-                send_error(self, 500, str(e))
-            finally:
-                conn.close()
-
     def _buy(self, data):
         listing_id = data.get("listing_id")
         buyer      = data.get("buyer")
@@ -279,10 +238,6 @@ class MarketHandler(BaseHTTPRequestHandler):
 
                 if not listing:
                     send_error(self, 404, "Listing not found")
-                    return
-
-                if listing["seller_name"] == buyer:
-                    send_error(self, 400, "Cannot buy your own listing")
                     return
 
                 if listing["quantity"] < quantity:
