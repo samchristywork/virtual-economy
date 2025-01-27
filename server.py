@@ -13,6 +13,7 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 def init_db():
@@ -40,6 +41,8 @@ def init_db():
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (seller_name) REFERENCES users(name)
         );
+
+        CREATE INDEX IF NOT EXISTS idx_listings_created_at ON listings(created_at DESC);
     """)
 
     for name in ("Alice", "Bob"):
