@@ -1,3 +1,5 @@
 #!/bin/bash
 
-curl -X POST localhost:8000/reset
+curl -s -X POST localhost:8000/reset \
+  -H "Content-Type: application/json" \
+  | jq .
