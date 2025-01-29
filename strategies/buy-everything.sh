@@ -7,10 +7,10 @@ if [[ -z "$BUYER" ]]; then
   exit 1
 fi
 
-cd scripts
+cd scripts || { echo "scripts/ directory not found"; exit 1; }
 
-./get-listings.sh | shuf | while read LINE; do
-  ID=$(echo $LINE | cut -f1 -d',')
-  QTY=$(echo $LINE | cut -f3 -d',')
-  ./buy.sh $ID $BUYER $QTY
+./get-listings.sh | grep -v "\"$BUYER\"$" | shuf | while read LINE; do
+  ID=$(echo "$LINE" | cut -f1 -d',')
+  QTY=$(echo "$LINE" | cut -f3 -d',')
+  ./buy.sh "$ID" "$BUYER" "$QTY"
 done
