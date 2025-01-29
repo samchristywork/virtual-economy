@@ -186,6 +186,13 @@ class MarketHandler(BaseHTTPRequestHandler):
         with db_lock:
             conn = get_db()
             try:
+                user_row = conn.execute(
+                    "SELECT name FROM users WHERE name = ?", (seller,)
+                ).fetchone()
+                if not user_row:
+                    send_error(self, 404, f"Seller '{seller}' not found")
+                    return
+
                 holding = conn.execute(
                     "SELECT quantity FROM holdings WHERE user_name = ? AND asset = ?",
                     (seller, asset),
