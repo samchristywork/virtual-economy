@@ -7,7 +7,7 @@ if [[ -z "$SELLER" ]]; then
   exit 1
 fi
 
-cd scripts
+cd scripts || { echo "scripts/ directory not found"; exit 1; }
 
 ./get-holdings.sh | grep "^\"$SELLER\"" | while read LINE; do
   ASSET=$(echo $LINE | cut -f2 -d',' | tr -d '"')

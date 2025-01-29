@@ -7,7 +7,7 @@ if [[ -z "$USER" ]]; then
   exit 1
 fi
 
-cd scripts
+cd scripts || { echo "scripts/ directory not found"; exit 1; }
 
 LINE=$(./get-listings.sh | grep -v "\"$USER\"$" | sort -t',' -k4 -n | head -1)
 if [[ -z "$LINE" ]]; then

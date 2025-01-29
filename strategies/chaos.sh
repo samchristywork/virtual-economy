@@ -7,7 +7,7 @@ if [[ -z "$USER" ]]; then
   exit 1
 fi
 
-cd scripts
+cd scripts || { echo "scripts/ directory not found"; exit 1; }
 
 ROLL=$((RANDOM % 10))
 
