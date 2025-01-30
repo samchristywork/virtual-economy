@@ -149,7 +149,9 @@ class MarketHandler(BaseHTTPRequestHandler):
 
         parsed = urlparse(self.path)
 
-        if parsed.path == "/listings":
+        if parsed.path == "/users":
+            self._create_user(data)
+        elif parsed.path == "/listings":
             self._create_listing(data)
         elif parsed.path == "/buy":
             self._buy(data)
@@ -159,6 +161,52 @@ class MarketHandler(BaseHTTPRequestHandler):
             self._reset()
         else:
             send_error(self, 404, "Not found")
+
+    def _create_user(self, data):
+        name    = data.get("name")
+        balance = data.get("balance", 1000)
+
+        if not name:
+            send_error(self, 400, "Required: name")
+            return
+
+        try:
+            balance = float(balance)
+        except (ValueError, TypeError):
+            send_error(self, 400, "Invalid numeric value for balance")
+            return
+
+        if balance < 0:
+            send_error(self, 400, "balance must be non-negative")
+            return
+
+        name = str(name)
+
+        with db_lock:
+            conn = get_db()
+            try:
+                existing = conn.execute(
+                    "SELECT name FROM users WHERE name = ?", (name,)
+                ).fetchone()
+                if existing:
+                    send_error(self, 409, f"User '{name}' already exists")
+                    return
+
+                conn.execute(
+                    "INSERT INTO users (name, balance) VALUES (?, ?)", (name, balance)
+                )
+                for asset in ("FOOD", "OIL", "WATER"):
+                    conn.execute(
+                        "INSERT INTO holdings (user_name, asset, quantity) VALUES (?, ?, 50)",
+                        (name, asset),
+                    )
+                conn.commit()
+                send_json(self, 201, {"name": name, "balance": balance})
+            except Exception as e:
+                conn.rollback()
+                send_error(self, 500, str(e))
+            finally:
+                conn.close()
 
     def _create_listing(self, data):
         seller   = data.get("seller")
