@@ -11,7 +11,10 @@ cd scripts || { echo "scripts/ directory not found"; exit 1; }
 
 ALL_LISTINGS=$(./get-listings.sh)
 
-./get-holdings.sh | grep "^\"$USER\"" | cut -f2 -d',' | tr -d '"' | while read ASSET; do
+./get-holdings.sh | grep "^\"$USER\"" | while read LINE; do
+  ASSET=$(echo "$LINE" | cut -f2 -d',' | tr -d '"')
+  HOLD_QTY=$(echo "$LINE" | cut -f3 -d',')
+
   MIN_PRICE=$(echo "$ALL_LISTINGS" | awk -F',' -v a="\"$ASSET\"" '$2 == a' | \
     grep -v "\"$USER\"$" | cut -f4 -d',' | sort -n | head -1)
 
