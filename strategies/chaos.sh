@@ -32,7 +32,7 @@ if [[ $ROLL -lt 4 ]]; then
 
   if [[ $MAX_QTY -lt $QTY ]]; then CAP=$MAX_QTY; else CAP=$QTY; fi
   BUY_QTY=$((RANDOM % CAP + 1))
-  ./buy.sh $ID $USER $BUY_QTY
+  ./buy.sh "$ID" "$USER" "$BUY_QTY"
 
 else
   LINE=$(./get-holdings.sh | grep "^\"$USER\"" | shuf -n1)
@@ -46,5 +46,5 @@ else
   SELL_QTY=$((RANDOM % HOLD_QTY + 1))
   PRICE=$(awk 'BEGIN{srand(); printf "%.2f", 1 + rand() * 19}')
 
-  ./sell.sh $USER $ASSET $SELL_QTY $PRICE
+  ./sell.sh "$USER" "$ASSET" "$SELL_QTY" "$PRICE"
 fi

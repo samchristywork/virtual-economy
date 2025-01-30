@@ -33,4 +33,4 @@ if [[ $MAX_QTY -lt $QTY ]]; then BUY_QTY=$MAX_QTY; else BUY_QTY=$QTY; fi
 ./buy.sh $ID $USER $BUY_QTY
 
 SELL_PRICE=$(echo "$PRICE" | awk '{printf "%.2f", $1 * 1.25}')
-./sell.sh $USER $ASSET $BUY_QTY $SELL_PRICE
+./sell.sh "$USER" "$ASSET" "$BUY_QTY" "$SELL_PRICE"

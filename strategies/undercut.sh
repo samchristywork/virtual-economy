@@ -26,5 +26,5 @@ ALL_LISTINGS=$(./get-listings.sh)
     continue
   fi
 
-  ./sell.sh $USER $ASSET 1 $SELL_PRICE
+  ./sell.sh "$USER" "$ASSET" "$HOLD_QTY" "$SELL_PRICE"
 done

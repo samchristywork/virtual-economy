@@ -24,5 +24,5 @@ cd scripts
   fi
 
   if [[ $MAX_QTY -lt $QTY ]]; then BUY_QTY=$MAX_QTY; else BUY_QTY=$QTY; fi
-  ./buy.sh $ID $USER $BUY_QTY
+  ./buy.sh "$ID" "$USER" "$BUY_QTY"
 done
