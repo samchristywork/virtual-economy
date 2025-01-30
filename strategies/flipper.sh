@@ -30,7 +30,12 @@ fi
 
 if [[ $MAX_QTY -lt $QTY ]]; then BUY_QTY=$MAX_QTY; else BUY_QTY=$QTY; fi
 
-./buy.sh $ID $USER $BUY_QTY
+BUY_RESULT=$(./buy.sh "$ID" "$USER" "$BUY_QTY")
+echo "$BUY_RESULT"
+if echo "$BUY_RESULT" | jq -e '.error' > /dev/null 2>&1; then
+  echo "[$USER] Buy failed, skipping sell."
+  exit 0
+fi
 
 SELL_PRICE=$(echo "$PRICE" | awk '{printf "%.2f", $1 * 1.25}')
 ./sell.sh "$USER" "$ASSET" "$BUY_QTY" "$SELL_PRICE"
