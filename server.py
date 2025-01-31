@@ -43,6 +43,19 @@ def init_db():
         );
 
         CREATE INDEX IF NOT EXISTS idx_listings_created_at ON listings(created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS transactions (
+            id              INTEGER   PRIMARY KEY AUTOINCREMENT,
+            buyer_name      TEXT      NOT NULL,
+            seller_name     TEXT      NOT NULL,
+            asset           TEXT      NOT NULL,
+            quantity        INTEGER   NOT NULL,
+            price_per_share REAL      NOT NULL,
+            total_price     REAL      NOT NULL,
+            executed_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_transactions_executed_at ON transactions(executed_at DESC);
     """)
 
     for name in ("Alice", "Bob"):
@@ -135,6 +148,28 @@ class MarketHandler(BaseHTTPRequestHandler):
                     FROM listings
                     ORDER BY created_at DESC
                 """).fetchall()
+                conn.close()
+            send_json(self, 200, [dict(r) for r in rows])
+
+        elif parsed.path == "/transactions":
+            user_name = params.get("user", [None])[0]
+            with db_lock:
+                conn = get_db()
+                if user_name:
+                    rows = conn.execute("""
+                        SELECT id, buyer_name AS buyer, seller_name AS seller,
+                               asset, quantity, price_per_share, total_price, executed_at
+                        FROM transactions
+                        WHERE buyer_name = ? OR seller_name = ?
+                        ORDER BY executed_at DESC
+                    """, (user_name, user_name)).fetchall()
+                else:
+                    rows = conn.execute("""
+                        SELECT id, buyer_name AS buyer, seller_name AS seller,
+                               asset, quantity, price_per_share, total_price, executed_at
+                        FROM transactions
+                        ORDER BY executed_at DESC
+                    """).fetchall()
                 conn.close()
             send_json(self, 200, [dict(r) for r in rows])
 
@@ -342,6 +377,14 @@ class MarketHandler(BaseHTTPRequestHandler):
                         (remaining, listing_id),
                     )
 
+                conn.execute(
+                    "INSERT INTO transactions"
+                    " (buyer_name, seller_name, asset, quantity, price_per_share, total_price)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (buyer, listing["seller_name"], listing["asset"],
+                     quantity, listing["price_per_share"], total_cost),
+                )
+
                 conn.commit()
                 send_json(self, 200, {
                     "message": f"Bought {quantity} shares of {listing['asset']} for ${total_cost:.2f}"
@@ -403,6 +446,7 @@ class MarketHandler(BaseHTTPRequestHandler):
             conn = get_db()
             try:
                 conn.executescript("""
+                    DELETE FROM transactions;
                     DELETE FROM listings;
                     DELETE FROM holdings;
                     DELETE FROM users;
