@@ -48,3 +48,41 @@ for i in $(seq 1 "$ITERATIONS"); do
   done
   wait
 done
+
+LISTINGS=$(curl -s "$SERVER/listings")
+HOLDINGS=$(curl -s "$SERVER/holdings")
+USERS=$(curl -s "$SERVER/users")
+STRATEGIES=$(for AGENT in "${AGENTS[@]}"; do
+  printf '{"name":"%s","strategy":"%s"}' "$(echo "$AGENT" | cut -d: -f1)" "$(echo "$AGENT" | cut -d: -f2)"
+done | jq -s '.')
+
+printf "\n=== Final Leaderboard ===\n\n"
+printf "%-15s %-15s %10s %10s %10s %10s %12s\n" "USER" "STRATEGY" "BALANCE" "FOOD" "OIL" "WATER" "NET WORTH"
+printf "%-15s %-15s %10s %10s %10s %10s %12s\n" "---------------" "---------------" "----------" "----------" "----------" "----------" "------------"
+
+jq -rn \
+  --argjson users      "$USERS" \
+  --argjson holdings   "$HOLDINGS" \
+  --argjson listings   "$LISTINGS" \
+  --argjson strategies "$STRATEGIES" \
+  '
+  ($listings | group_by(.asset) | map({key: .[0].asset, value: (map(.price_per_share) | min)}) | from_entries) as $prices |
+  ($strategies | map({key: .name, value: .strategy}) | from_entries) as $strat |
+  $users | map(
+    . as $user |
+    ($holdings | map(select(.name == $user.name)) | group_by(.asset) | map({key: .[0].asset, value: .[0].quantity}) | from_entries) as $h |
+    {
+      name: $user.name,
+      strategy: ($strat[$user.name] // "unknown"),
+      balance: $user.balance,
+      food:  ($h.FOOD  // 0),
+      oil:   ($h.OIL   // 0),
+      water: ($h.WATER // 0),
+      net_worth: ($user.balance
+        + ($h.FOOD  // 0) * ($prices.FOOD  // 0)
+        + ($h.OIL   // 0) * ($prices.OIL   // 0)
+        + ($h.WATER // 0) * ($prices.WATER // 0))
+    }
+  ) | sort_by(-.net_worth)[]
+  | [.name, .strategy, .balance, .food, .oil, .water, .net_worth] | @tsv
+  ' | awk -F'\t' '{printf "%-15s %-15s %10.2f %10d %10d %10d %12.2f\n", $1, $2, $3, $4, $5, $6, $7}'
