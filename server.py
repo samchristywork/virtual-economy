@@ -58,17 +58,6 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_transactions_executed_at ON transactions(executed_at DESC);
     """)
 
-    for name in ("Alice", "Bob"):
-        conn.execute("INSERT OR IGNORE INTO users (name, balance) VALUES (?, 1000)", (name,))
-    conn.commit()
-
-    for name in ("Alice", "Bob"):
-        for asset in ("FOOD", "OIL", "WATER"):
-            conn.execute(
-                "INSERT OR IGNORE INTO holdings (user_name, asset, quantity) VALUES (?, ?, 50)",
-                (name, asset),
-            )
-    conn.commit()
     conn.close()
 
 def send_json(handler, status, data):
