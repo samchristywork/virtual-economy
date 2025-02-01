@@ -56,6 +56,16 @@ def init_db():
         );
 
         CREATE INDEX IF NOT EXISTS idx_transactions_executed_at ON transactions(executed_at DESC);
+
+        CREATE TABLE IF NOT EXISTS price_history (
+            id          INTEGER   PRIMARY KEY AUTOINCREMENT,
+            iteration   INTEGER   NOT NULL,
+            asset       TEXT      NOT NULL,
+            avg_price   REAL      NOT NULL,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_price_history ON price_history(iteration, asset);
     """)
 
     conn.close()
@@ -162,6 +172,9 @@ class MarketHandler(BaseHTTPRequestHandler):
                 conn.close()
             send_json(self, 200, [dict(r) for r in rows])
 
+        elif parsed.path == "/prices/history":
+            self._get_price_history(params)
+
         else:
             send_error(self, 404, "Not found")
 
@@ -181,6 +194,8 @@ class MarketHandler(BaseHTTPRequestHandler):
             self._buy(data)
         elif parsed.path == "/consume":
             self._consume(data)
+        elif parsed.path == "/prices/snapshot":
+            self._record_snapshot(data)
         elif parsed.path == "/reset":
             self._reset()
         else:
@@ -435,6 +450,7 @@ class MarketHandler(BaseHTTPRequestHandler):
             conn = get_db()
             try:
                 conn.executescript("""
+                    DELETE FROM price_history;
                     DELETE FROM transactions;
                     DELETE FROM listings;
                     DELETE FROM holdings;
@@ -445,6 +461,87 @@ class MarketHandler(BaseHTTPRequestHandler):
                 conn.close()
         init_db()
         send_json(self, 200, {"message": "Reset complete"})
+
+    def _get_price_history(self, params):
+        asset = params.get("asset", [None])[0]
+        with db_lock:
+            conn = get_db()
+            if asset:
+                rows = conn.execute(
+                    "SELECT iteration, asset, avg_price, recorded_at"
+                    " FROM price_history WHERE asset = ? ORDER BY iteration",
+                    (asset.upper(),),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT iteration, asset, avg_price, recorded_at"
+                    " FROM price_history ORDER BY iteration, asset"
+                ).fetchall()
+            conn.close()
+        send_json(self, 200, [dict(r) for r in rows])
+
+    def _record_snapshot(self, data):
+        iteration = data.get("iteration", 0)
+        try:
+            iteration = int(iteration)
+        except (ValueError, TypeError):
+            send_error(self, 400, "Invalid iteration value")
+            return
+
+        with db_lock:
+            conn = get_db()
+            try:
+                last_row = conn.execute(
+                    "SELECT MAX(recorded_at) AS ts FROM price_history"
+                ).fetchone()
+                last_ts = last_row["ts"]
+
+                # Weighted average of transactions since the previous snapshot
+                if last_ts:
+                    tx_rows = conn.execute("""
+                        SELECT asset,
+                               CAST(SUM(quantity * price_per_share) AS REAL) / SUM(quantity) AS avg_price
+                        FROM transactions
+                        WHERE executed_at > ?
+                        GROUP BY asset
+                    """, (last_ts,)).fetchall()
+                else:
+                    tx_rows = conn.execute("""
+                        SELECT asset,
+                               CAST(SUM(quantity * price_per_share) AS REAL) / SUM(quantity) AS avg_price
+                        FROM transactions
+                        GROUP BY asset
+                    """).fetchall()
+
+                prices = {r["asset"]: r["avg_price"] for r in tx_rows}
+
+                # Fall back to minimum listing price for assets with no recent transactions
+                for r in conn.execute(
+                    "SELECT asset, MIN(price_per_share) AS p FROM listings GROUP BY asset"
+                ).fetchall():
+                    if r["asset"] not in prices:
+                        prices[r["asset"]] = r["p"]
+
+                if not prices:
+                    send_json(self, 200, {"message": "No price data available", "iteration": iteration})
+                    return
+
+                for asset, avg_price in prices.items():
+                    conn.execute(
+                        "INSERT INTO price_history (iteration, asset, avg_price) VALUES (?, ?, ?)",
+                        (iteration, asset, round(avg_price, 4)),
+                    )
+                conn.commit()
+                send_json(self, 201, {
+                    "iteration": iteration,
+                    "prices": {k: round(v, 4) for k, v in prices.items()},
+                })
+            except Exception as e:
+                conn.rollback()
+                send_error(self, 500, str(e))
+            finally:
+                conn.close()
+
 
 if __name__ == "__main__":
     init_db()

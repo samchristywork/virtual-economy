@@ -56,6 +56,9 @@ for i in $(seq 1 "$ITERATIONS"); do
     fi
   done
   unset AGENT_PIDS
+  curl -s -X POST "$SERVER/prices/snapshot" \
+    -H "Content-Type: application/json" \
+    -d "{\"iteration\": $i}" > /dev/null
 done
 
 LISTINGS=$(curl -s "$SERVER/listings")
@@ -95,3 +98,40 @@ jq -rn \
   ) | sort_by(-.net_worth)[]
   | [.name, .strategy, .balance, .food, .oil, .water, .net_worth] | @tsv
   ' | awk -F'\t' '{printf "%-15s %-15s %10.2f %10d %10d %10d %12.2f\n", $1, $2, $3, $4, $5, $6, $7}'
+
+PRICE_HISTORY=$(curl -s "$SERVER/prices/history")
+
+printf "\n=== Price History ===\n\n"
+printf "%-6s %10s %10s %10s\n" "Iter" "FOOD" "OIL" "WATER"
+printf "%-6s %10s %10s %10s\n" "------" "----------" "----------" "----------"
+
+echo "$PRICE_HISTORY" | jq -r '
+  group_by(.iteration)[] |
+  (.[0].iteration) as $i |
+  (map(select(.asset == "FOOD"))[0].avg_price  // 0) as $f |
+  (map(select(.asset == "OIL"))[0].avg_price   // 0) as $o |
+  (map(select(.asset == "WATER"))[0].avg_price // 0) as $w |
+  "\($i)\t\($f)\t\($o)\t\($w)"
+' | awk -F'\t' '{printf "%-6d %10.2f %10.2f %10.2f\n", $1, $2, $3, $4}'
+
+printf "\nSparklines (▁ = min, █ = max):\n\n"
+for ASSET in FOOD OIL WATER; do
+  printf "  %-6s " "$ASSET"
+  echo "$PRICE_HISTORY" | jq -r --arg a "$ASSET" \
+    '[.[] | select(.asset == $a) | .avg_price] | @tsv' | \
+  awk '{
+    if ($0 == "") { print "(no data)"; exit }
+    n = split($0, v, "\t")
+    min = max = v[1]+0
+    for (i = 2; i <= n; i++) {
+      if (v[i]+0 < min) min = v[i]+0
+      if (v[i]+0 > max) max = v[i]+0
+    }
+    split("▁ ▂ ▃ ▄ ▅ ▆ ▇ █", b, " ")
+    for (i = 1; i <= n; i++) {
+      idx = (max == min) ? 4 : int((v[i]+0 - min) / (max - min) * 7) + 1
+      printf "%s", b[idx]
+    }
+    printf "  min: %.2f  max: %.2f\n", min, max
+  }'
+done
