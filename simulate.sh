@@ -14,6 +14,7 @@ else
     "Charlie:hoarder"
     "Diana:sniper"
     "Eve:undercut"
+    "Frank:value-investor"
     "Grace:momentum"
   )
 fi
