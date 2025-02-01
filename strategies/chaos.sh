@@ -12,15 +12,15 @@ cd scripts || { echo "scripts/ directory not found"; exit 1; }
 ROLL=$((RANDOM % 10))
 
 if [[ $ROLL -lt 4 ]]; then
-  LINE=$(./get-listings.sh | grep -v "\"$USER\"$" | shuf -n1)
+  LINE=$(./get-listings.sh | awk -F'\t' -v u="$USER" '$5 != u' | shuf -n1)
   if [[ -z "$LINE" ]]; then
     echo "[$USER] No listings to buy."
     exit 0
   fi
 
-  ID=$(echo "$LINE" | cut -f1 -d',')
-  QTY=$(echo "$LINE" | cut -f3 -d',')
-  PRICE=$(echo "$LINE" | cut -f4 -d',')
+  ID=$(echo "$LINE" | cut -f1)
+  QTY=$(echo "$LINE" | cut -f3)
+  PRICE=$(echo "$LINE" | cut -f4)
 
   BALANCE=$(curl -s localhost:8000/users | jq -r ".[] | select(.name == \"$USER\") | .balance")
   MAX_QTY=$(echo "$BALANCE $PRICE" | awk '{print int($1/$2)}')
@@ -35,14 +35,14 @@ if [[ $ROLL -lt 4 ]]; then
   ./buy.sh "$ID" "$USER" "$BUY_QTY"
 
 else
-  LINE=$(./get-holdings.sh | grep "^\"$USER\"" | shuf -n1)
+  LINE=$(./get-holdings.sh | awk -F'\t' -v u="$USER" '$1 == u' | shuf -n1)
   if [[ -z "$LINE" ]]; then
     echo "[$USER] Nothing to sell."
     exit 0
   fi
 
-  ASSET=$(echo "$LINE" | cut -f2 -d',' | tr -d '"')
-  HOLD_QTY=$(echo "$LINE" | cut -f3 -d',')
+  ASSET=$(echo "$LINE" | cut -f2)
+  HOLD_QTY=$(echo "$LINE" | cut -f3)
   SELL_QTY=$((RANDOM % HOLD_QTY + 1))
   PRICE=$(awk 'BEGIN{srand(); printf "%.2f", 1 + rand() * 19}')
 

@@ -12,5 +12,5 @@ fi
 
 curl -s -X POST localhost:8000/listings \
   -H "Content-Type: application/json" \
-  -d "{\"seller\":\"$SELLER\",\"asset\":\"$ASSET\",\"quantity\":$QUANTITY,\"price_per_share\":$PRICE}" \
+  -d "$(jq -n --arg seller "$SELLER" --arg asset "$ASSET" --argjson qty "$QUANTITY" --argjson price "$PRICE" '{seller: $seller, asset: $asset, quantity: $qty, price_per_share: $price}')" \
   | jq .

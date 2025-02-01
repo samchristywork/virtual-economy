@@ -9,8 +9,8 @@ fi
 
 cd scripts || { echo "scripts/ directory not found"; exit 1; }
 
-./get-listings.sh | grep -v "\"$BUYER\"$" | shuf | while read LINE; do
-  ID=$(echo "$LINE" | cut -f1 -d',')
-  QTY=$(echo "$LINE" | cut -f3 -d',')
+./get-listings.sh | awk -F'\t' -v u="$BUYER" '$5 != u' | shuf | while read LINE; do
+  ID=$(echo "$LINE" | cut -f1)
+  QTY=$(echo "$LINE" | cut -f3)
   ./buy.sh "$ID" "$BUYER" "$QTY"
 done

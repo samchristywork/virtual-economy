@@ -43,12 +43,19 @@ printf "\n=== Running %d iterations with %d agents ===\n\n" "$ITERATIONS" "${#AG
 
 for i in $(seq 1 "$ITERATIONS"); do
   echo "--- Iteration $i/$ITERATIONS ---"
+  declare -A AGENT_PIDS
   for AGENT in "${AGENTS[@]}"; do
     USER=$(echo "$AGENT" | cut -d: -f1)
     STRATEGY=$(echo "$AGENT" | cut -d: -f2)
     (./strategies/"$STRATEGY".sh "$USER") &
+    AGENT_PIDS[$!]="$USER:$STRATEGY"
   done
-  wait
+  for PID in "${!AGENT_PIDS[@]}"; do
+    if ! wait "$PID"; then
+      echo "Warning: ${AGENT_PIDS[$PID]} exited with error"
+    fi
+  done
+  unset AGENT_PIDS
 done
 
 LISTINGS=$(curl -s "$SERVER/listings")

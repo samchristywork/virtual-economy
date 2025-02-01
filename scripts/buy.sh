@@ -11,5 +11,5 @@ fi
 
 curl -s -X POST localhost:8000/buy \
   -H "Content-Type: application/json" \
-  -d "{\"listing_id\":$LISTING_ID,\"buyer\":\"$BUYER\",\"quantity\":$QUANTITY}" \
+  -d "$(jq -n --argjson id "$LISTING_ID" --arg buyer "$BUYER" --argjson qty "$QUANTITY" '{listing_id: $id, buyer: $buyer, quantity: $qty}')" \
   | jq .

@@ -10,5 +10,5 @@ fi
 
 curl -s -X POST localhost:8000/users \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"$NAME\",\"balance\":$BALANCE}" \
+  -d "$(jq -n --arg name "$NAME" --argjson balance "$BALANCE" '{name: $name, balance: $balance}')" \
   | jq .
