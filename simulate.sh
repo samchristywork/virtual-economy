@@ -56,6 +56,18 @@ for i in $(seq 1 "$ITERATIONS"); do
     fi
   done
   unset AGENT_PIDS
+
+  for AGENT in "${AGENTS[@]}"; do
+    USER=$(echo "$AGENT" | cut -d: -f1)
+    for ASSET in FOOD OIL WATER; do
+      CONSUME=$(( RANDOM % 3 + 1 ))
+      curl -s -X POST "$SERVER/consume" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n --arg u "$USER" --arg a "$ASSET" --argjson q "$CONSUME" \
+          '{user: $u, asset: $a, quantity: $q}')" > /dev/null
+    done
+  done
+
   curl -s -X POST "$SERVER/prices/snapshot" \
     -H "Content-Type: application/json" \
     -d "{\"iteration\": $i}" > /dev/null
