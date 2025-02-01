@@ -9,6 +9,8 @@ from urllib.parse import urlparse, parse_qs
 DB_PATH = "market.db"
 db_lock = threading.Lock()
 
+TRADE_FEE = 0.005 #0.5% of transaction value
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -52,6 +54,7 @@ def init_db():
             quantity        INTEGER   NOT NULL,
             price_per_share REAL      NOT NULL,
             total_price     REAL      NOT NULL,
+            fee             REAL      NOT NULL DEFAULT 0,
             executed_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -157,7 +160,7 @@ class MarketHandler(BaseHTTPRequestHandler):
                 if user_name:
                     rows = conn.execute("""
                         SELECT id, buyer_name AS buyer, seller_name AS seller,
-                               asset, quantity, price_per_share, total_price, executed_at
+                               asset, quantity, price_per_share, total_price, fee, executed_at
                         FROM transactions
                         WHERE buyer_name = ? OR seller_name = ?
                         ORDER BY executed_at DESC
@@ -165,7 +168,7 @@ class MarketHandler(BaseHTTPRequestHandler):
                 else:
                     rows = conn.execute("""
                         SELECT id, buyer_name AS buyer, seller_name AS seller,
-                               asset, quantity, price_per_share, total_price, executed_at
+                               asset, quantity, price_per_share, total_price, fee, executed_at
                         FROM transactions
                         ORDER BY executed_at DESC
                     """).fetchall()
@@ -342,6 +345,8 @@ class MarketHandler(BaseHTTPRequestHandler):
                     return
 
                 total_cost = quantity * listing["price_per_share"]
+                fee        = round(total_cost * TRADE_FEE, 2)
+                total_due  = total_cost + fee
 
                 buyer_row = conn.execute(
                     "SELECT balance FROM users WHERE name = ?", (buyer,)
@@ -351,16 +356,17 @@ class MarketHandler(BaseHTTPRequestHandler):
                     send_error(self, 404, "Buyer not found")
                     return
 
-                if buyer_row["balance"] < total_cost:
+                if buyer_row["balance"] < total_due:
                     send_error(
                         self, 400,
-                        f"Insufficient funds: need ${total_cost:.2f}, have ${buyer_row['balance']:.2f}",
+                        f"Insufficient funds: need ${total_due:.2f} (${total_cost:.2f} + ${fee:.2f} fee),"
+                        f" have ${buyer_row['balance']:.2f}",
                     )
                     return
 
                 conn.execute(
                     "UPDATE users SET balance = balance - ? WHERE name = ?",
-                    (total_cost, buyer),
+                    (total_due, buyer),
                 )
                 conn.execute(
                     "UPDATE users SET balance = balance + ? WHERE name = ?",
@@ -383,15 +389,18 @@ class MarketHandler(BaseHTTPRequestHandler):
 
                 conn.execute(
                     "INSERT INTO transactions"
-                    " (buyer_name, seller_name, asset, quantity, price_per_share, total_price)"
-                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    " (buyer_name, seller_name, asset, quantity, price_per_share, total_price, fee)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (buyer, listing["seller_name"], listing["asset"],
-                     quantity, listing["price_per_share"], total_cost),
+                     quantity, listing["price_per_share"], total_cost, fee),
                 )
 
                 conn.commit()
                 send_json(self, 200, {
-                    "message": f"Bought {quantity} shares of {listing['asset']} for ${total_cost:.2f}"
+                    "message": f"Bought {quantity} shares of {listing['asset']}"
+                               f" for ${total_cost:.2f} + ${fee:.2f} fee",
+                    "total_cost": total_cost,
+                    "fee": fee,
                 })
             except Exception as e:
                 conn.rollback()
