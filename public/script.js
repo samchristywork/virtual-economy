@@ -262,3 +262,67 @@ function strategyBuyEverything(name) {
     buyListing(snap.id, name, cur.quantity);
   }
 }
+
+const STRATEGIES = {
+  'chaos':          strategyChaos,
+  'flipper':        strategyFlipper,
+  'hoarder':        strategyHoarder,
+  'momentum':       strategyMomentum,
+  'sniper':         strategySniper,
+  'undercut':       strategyUndercut,
+  'value-investor': strategyValueInvestor,
+  'panic-sell':     strategyPanicSell,
+  'buy-everything': strategyBuyEverything,
+};
+
+let running = false;
+
+async function runSimulation() {
+  if (running) return;
+  running = true;
+
+  const iterations = Math.max(1, parseInt(document.getElementById('iterations').value) || 30);
+  const agents = DEFAULT_AGENTS;
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('log').textContent = '';
+
+  resetState(agents);
+  recordNwSnapshot(0);
+
+  buildLegends(agents);
+  drawPriceChart(iterations);
+  drawNwChart(agents, iterations);
+  updateLeaderboard(agents);
+
+  for (let i = 1; i <= iterations; i++) {
+    // Each agent takes a turn
+    for (const agent of agents) {
+      const fn = STRATEGIES[agent.strategy];
+      if (fn) fn(agent.name);
+    }
+
+    // Consumption: 1-3 units of each asset per agent
+    for (const agent of agents) {
+      for (const asset of ASSETS) {
+        consume(agent.name, asset, Math.floor(Math.random() * 3) + 1);
+      }
+    }
+
+    recordPriceSnapshot(i);
+    recordNwSnapshot(i);
+
+    updateProgress(i, iterations);
+    drawPriceChart(iterations);
+    drawNwChart(agents, iterations);
+    updateLeaderboard(agents);
+    logIteration(i, agents);
+
+    await new Promise(r => setTimeout(r, 16));
+  }
+
+  document.getElementById('progress-text').textContent =
+    `Done — ${iterations} iterations, ${agents.length} agents`;
+  document.getElementById('runBtn').disabled = false;
+  running = false;
+}
