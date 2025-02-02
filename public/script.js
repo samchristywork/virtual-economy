@@ -142,3 +142,123 @@ function recordNwSnapshot(iteration) {
     state.nwHistory.push({ iteration, name, nw: +nw.toFixed(2) });
   }
 }
+
+function strategyChaos(name) {
+  if (Math.random() < 0.4) {
+    const listings = othersListings(name);
+    if (!listings.length) return;
+    const listing = listings[Math.floor(Math.random() * listings.length)];
+    const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+    if (maxQty <= 0) return;
+    const qty = Math.floor(Math.random() * Math.min(maxQty, listing.quantity)) + 1;
+    buyListing(listing.id, name, qty);
+  } else {
+    const owned = ASSETS.filter(a => getHolding(name, a) > 0);
+    if (!owned.length) return;
+    const asset = owned[Math.floor(Math.random() * owned.length)];
+    const have  = getHolding(name, asset);
+    const qty   = Math.floor(Math.random() * have) + 1;
+    const price = +(1 + Math.random() * 19).toFixed(2);
+    createListing(name, asset, qty, price);
+  }
+}
+
+function strategyFlipper(name) {
+  const listings = othersListings(name).sort((a, b) => a.price_per_share - b.price_per_share);
+  if (!listings.length) return;
+  const listing = listings[0];
+  const maxQty  = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+  if (maxQty <= 0) return;
+  const qty = Math.min(maxQty, listing.quantity);
+  if (buyListing(listing.id, name, qty)) {
+    createListing(name, listing.asset, qty, +(listing.price_per_share * 1.25).toFixed(2));
+  }
+}
+
+function strategyHoarder(name) {
+  const food = othersListings(name)
+    .filter(l => l.asset === 'FOOD')
+    .sort((a, b) => a.price_per_share - b.price_per_share);
+  for (const listing of food) {
+    const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+    if (maxQty <= 0) break;
+    buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+  }
+}
+
+function strategyMomentum(name) {
+  const avail = othersListings(name);
+  if (!avail.length) return;
+  const vol = {};
+  for (const l of avail) vol[l.asset] = (vol[l.asset] ?? 0) + l.quantity;
+  const top = Object.entries(vol).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (!top) return;
+  const targets = avail.filter(l => l.asset === top).sort((a, b) => a.price_per_share - b.price_per_share);
+  for (const listing of targets) {
+    const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+    if (maxQty <= 0) break;
+    buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+  }
+}
+
+function strategySniper(name) {
+  const MAX_PRICE = 10;
+  const cheap = othersListings(name)
+    .filter(l => l.price_per_share < MAX_PRICE)
+    .sort((a, b) => a.price_per_share - b.price_per_share);
+  for (const listing of cheap) {
+    const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+    if (maxQty <= 0) break;
+    buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+  }
+}
+
+function strategyUndercut(name) {
+  const others = othersListings(name);
+  for (const asset of ASSETS) {
+    const qty = getHolding(name, asset);
+    if (qty <= 0) continue;
+    const prices = others.filter(l => l.asset === asset).map(l => l.price_per_share);
+    if (!prices.length) continue;
+    const minP = Math.min(...prices);
+    if (minP <= 0.01) continue;
+    createListing(name, asset, qty, +(minP - 0.01).toFixed(2));
+  }
+}
+
+function strategyValueInvestor(name) {
+  for (const asset of ASSETS) {
+    const all = state.listings.filter(l => l.asset === asset);
+    if (!all.length) continue;
+    const avg = all.reduce((s, l) => s + l.price_per_share, 0) / all.length;
+
+    const bargains = all
+      .filter(l => l.seller !== name && l.price_per_share < avg)
+      .sort((a, b) => a.price_per_share - b.price_per_share);
+
+    for (const listing of bargains) {
+      const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+      if (maxQty <= 0) break;
+      buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+    }
+
+    const hold = getHolding(name, asset);
+    if (hold > 0) createListing(name, asset, hold, +(avg * 1.05).toFixed(2));
+  }
+}
+
+function strategyPanicSell(name) {
+  for (const asset of ASSETS) {
+    const qty = getHolding(name, asset);
+    if (qty > 0) createListing(name, asset, qty, 1.00);
+  }
+}
+
+function strategyBuyEverything(name) {
+  const listings = othersListings(name).sort(() => Math.random() - 0.5);
+  for (const snap of listings) {
+    const cur = state.listings.find(l => l.id === snap.id);
+    if (!cur) continue;
+    buyListing(snap.id, name, cur.quantity);
+  }
+}
