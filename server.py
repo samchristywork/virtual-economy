@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import json
+import mimetypes
+import os
 import sqlite3
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -104,16 +106,9 @@ class MarketHandler(BaseHTTPRequestHandler):
         params = parse_qs(parsed.query)
 
         if parsed.path in ("/", "/index.html"):
-            try:
-                with open("index.html", "rb") as f:
-                    body = f.read()
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html")
-                self.send_header("Content-Length", len(body))
-                self.end_headers()
-                self.wfile.write(body)
-            except FileNotFoundError:
-                send_error(self, 404, "index.html not found")
+            parsed = parsed._replace(path="/index.html")
+            self._serve_static(parsed.path)
+            return
 
         elif parsed.path == "/users":
             with db_lock:
@@ -179,7 +174,7 @@ class MarketHandler(BaseHTTPRequestHandler):
             self._get_price_history(params)
 
         else:
-            send_error(self, 404, "Not found")
+            self._serve_static(parsed.path)
 
     def do_POST(self):
         data = self.read_body()
@@ -203,6 +198,21 @@ class MarketHandler(BaseHTTPRequestHandler):
             self._reset()
         else:
             send_error(self, 404, "Not found")
+
+    def _serve_static(self, path):
+        safe = os.path.normpath(path).lstrip("/")
+        full = os.path.join("public", safe)
+        if not os.path.isfile(full):
+            send_error(self, 404, "Not found")
+            return
+        mime, _ = mimetypes.guess_type(full)
+        with open(full, "rb") as f:
+            body = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", mime or "application/octet-stream")
+        self.send_header("Content-Length", len(body))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _create_user(self, data):
         name    = data.get("name")
