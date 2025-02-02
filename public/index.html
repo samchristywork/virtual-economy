@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual Economy Simulation</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="header">
+  <h1>Virtual Economy Simulation</h1>
+  <div id="controls">
+    <label>Iterations: <input id="iterations" type="number" value="30" min="1" max="500"></label>
+    <button id="runBtn">Run Simulation</button>
+  </div>
+</div>
+
+<div class="card" id="progress-card">
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+  <div id="progress-text">Ready</div>
+</div>
+
+<div id="charts-row">
+  <div class="chart-card">
+    <h2>Asset Prices</h2>
+    <canvas id="priceChart" width="580" height="280"></canvas>
+    <div class="legend" id="priceLegend"></div>
+  </div>
+  <div class="chart-card">
+    <h2>Net Worth</h2>
+    <canvas id="nwChart" width="580" height="280"></canvas>
+    <div class="legend" id="nwLegend"></div>
+  </div>
+</div>
+
+<div class="card" id="leaderboard-section">
+  <h2>Leaderboard</h2>
+  <div id="leaderboard-wrap">
+    <table id="leaderboard">
+      <thead>
+        <tr>
+          <th>#</th><th>Agent</th><th>Strategy</th>
+          <th>Balance</th><th>FOOD</th><th>OIL</th><th>WATER</th><th>Net Worth</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" id="log-section">
+  <h2>Activity Log</h2>
+  <pre id="log">Run the simulation to see activity.</pre>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
