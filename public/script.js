@@ -11,6 +11,7 @@ const DEFAULT_AGENTS = [
   { name: 'Grace',   strategy: 'momentum'         },
   { name: 'Henry',   strategy: 'trend-follower'   },
   { name: 'Iris',    strategy: 'mean-reversion'   },
+  { name: 'Jack',    strategy: 'scalper'          },
 ];
 
 const AGENT_COLORS = {
@@ -23,6 +24,7 @@ const AGENT_COLORS = {
   Grace:   '#eab308',
   Henry:   '#6366f1',
   Iris:    '#ec4899',
+  Jack:    '#84cc16',
 };
 
 const ASSET_COLORS = { FOOD: '#22c55e', OIL: '#f97316', WATER: '#3b82f6' };
@@ -325,6 +327,19 @@ function strategyMeanReversion(name) {
   }
 }
 
+// Buys the 3 cheapest listings across all assets and immediately relists at a 10% markup.
+function strategyScalper(name) {
+  const listings = othersListings(name).sort((a, b) => a.price_per_share - b.price_per_share);
+  for (const listing of listings.slice(0, 3)) {
+    const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+    if (maxQty <= 0) continue;
+    const qty = Math.min(maxQty, listing.quantity);
+    if (buyListing(listing.id, name, qty)) {
+      createListing(name, listing.asset, qty, +(listing.price_per_share * 1.10).toFixed(2));
+    }
+  }
+}
+
 const STRATEGIES = {
   'chaos':          strategyChaos,
   'flipper':        strategyFlipper,
@@ -337,6 +352,7 @@ const STRATEGIES = {
   'buy-everything': strategyBuyEverything,
   'trend-follower': strategyTrendFollower,
   'mean-reversion': strategyMeanReversion,
+  'scalper':        strategyScalper,
 };
 
 let running = false;
