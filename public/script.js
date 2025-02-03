@@ -2,13 +2,14 @@ const ASSETS = ['FOOD', 'OIL', 'WATER'];
 const TRADE_FEE = 0.005;
 
 const DEFAULT_AGENTS = [
-  { name: 'Alice', strategy: 'chaos' },
-  { name: 'Bob', strategy: 'flipper' },
-  { name: 'Charlie', strategy: 'hoarder' },
-  { name: 'Diana', strategy: 'sniper' },
-  { name: 'Eve', strategy: 'undercut' },
-  { name: 'Frank', strategy: 'value-investor' },
-  { name: 'Grace', strategy: 'momentum' },
+  { name: 'Alice',   strategy: 'chaos'           },
+  { name: 'Bob',     strategy: 'flipper'          },
+  { name: 'Charlie', strategy: 'hoarder'          },
+  { name: 'Diana',   strategy: 'sniper'           },
+  { name: 'Eve',     strategy: 'undercut'         },
+  { name: 'Frank',   strategy: 'value-investor'   },
+  { name: 'Grace',   strategy: 'momentum'         },
+  { name: 'Henry',   strategy: 'trend-follower'   },
 ];
 
 const AGENT_COLORS = {
@@ -19,6 +20,7 @@ const AGENT_COLORS = {
   Eve:     '#f97316',
   Frank:   '#14b8a6',
   Grace:   '#eab308',
+  Henry:   '#6366f1',
 };
 
 const ASSET_COLORS = { FOOD: '#22c55e', OIL: '#f97316', WATER: '#3b82f6' };
@@ -263,6 +265,40 @@ function strategyBuyEverything(name) {
   }
 }
 
+// Buys assets whose price rose over the last 3 snapshots; sells assets that fell.
+function strategyTrendFollower(name) {
+  const trends = {};
+  for (const asset of ASSETS) {
+    const h = state.priceHistory.filter(p => p.asset === asset).slice(-3);
+    if (h.length >= 2) trends[asset] = h.at(-1).avg_price - h[0].avg_price;
+  }
+
+  for (const [asset, trend] of Object.entries(trends)) {
+    if (trend < 0) {
+      const qty = getHolding(name, asset);
+      if (qty <= 0) continue;
+      const ap = othersListings(name).filter(l => l.asset === asset).map(l => l.price_per_share);
+      createListing(name, asset, qty, ap.length ? +(Math.min(...ap) * 0.99).toFixed(2) : 1);
+    }
+  }
+
+  const rising = Object.entries(trends)
+    .filter(([, t]) => t > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([asset]) => asset);
+
+  for (const asset of rising) {
+    const cheap = othersListings(name)
+      .filter(l => l.asset === asset)
+      .sort((a, b) => a.price_per_share - b.price_per_share);
+    for (const listing of cheap) {
+      const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+      if (maxQty <= 0) break;
+      buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+    }
+  }
+}
+
 const STRATEGIES = {
   'chaos':          strategyChaos,
   'flipper':        strategyFlipper,
@@ -271,8 +307,9 @@ const STRATEGIES = {
   'sniper':         strategySniper,
   'undercut':       strategyUndercut,
   'value-investor': strategyValueInvestor,
-  'panic-sell':     strategyPanicSell,
-  'buy-everything': strategyBuyEverything,
+  'panic-sell':      strategyPanicSell,
+  'buy-everything':  strategyBuyEverything,
+  'trend-follower':  strategyTrendFollower,
 };
 
 let running = false;
