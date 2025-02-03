@@ -326,3 +326,78 @@ async function runSimulation() {
   document.getElementById('runBtn').disabled = false;
   running = false;
 }
+
+function logIteration(i, agents) {
+  const el = document.getElementById('log');
+  const txs = state.transactions.slice(-agents.length * 4);
+  if (!txs.length) return;
+  const lines = txs.map(t =>
+    `iter ${i.toString().padStart(3)} | ${t.buyer.padEnd(7)} bought ${t.qty.toString().padStart(3)}x ${t.asset.padEnd(5)} @ $${t.price.toFixed(2)} from ${t.seller}`
+  );
+  el.textContent = lines.join('\n') + '\n' + el.textContent;
+}
+
+function updateProgress(i, total) {
+  document.getElementById('progress-bar').style.width = (i / total * 100) + '%';
+  document.getElementById('progress-text').textContent = `Iteration ${i} / ${total}`;
+}
+
+function buildLegends(agents) {
+  const pl = document.getElementById('priceLegend');
+  pl.innerHTML = ASSETS.map(a =>
+    `<span class="legend-item">
+      <span class="legend-swatch" style="background:${ASSET_COLORS[a]}"></span>${a}
+    </span>`
+  ).join('');
+
+  const nl = document.getElementById('nwLegend');
+  nl.innerHTML = agents.map(a =>
+    `<span class="legend-item">
+      <span class="legend-swatch" style="background:${AGENT_COLORS[a.name] ?? '#999'}"></span>${a.name}
+    </span>`
+  ).join('');
+}
+
+function updateLeaderboard(agents) {
+  const prices = {};
+  for (const asset of ASSETS) {
+    const ap = state.listings.filter(l => l.asset === asset).map(l => l.price_per_share);
+    if (ap.length) prices[asset] = Math.min(...ap);
+    else {
+      const last = [...state.priceHistory].reverse().find(p => p.asset === asset);
+      prices[asset] = last?.avg_price ?? 0;
+    }
+  }
+
+  const rows = agents.map(a => {
+    const bal = getBalance(a.name);
+    const food  = getHolding(a.name, 'FOOD');
+    const oil   = getHolding(a.name, 'OIL');
+    const water = getHolding(a.name, 'WATER');
+    const nw    = bal + food * (prices.FOOD ?? 0) + oil * (prices.OIL ?? 0) + water * (prices.WATER ?? 0);
+    return { name: a.name, strategy: a.strategy, bal, food, oil, water, nw };
+  }).sort((a, b) => b.nw - a.nw);
+
+  const tbody = document.getElementById('leaderboard-body');
+  tbody.innerHTML = rows.map((r, i) => {
+    const rankCls = i < 3 ? `rank rank-${i + 1}` : 'rank';
+    const medal   = ['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`;
+    const color   = AGENT_COLORS[r.name] ?? '#999';
+    return `<tr>
+      <td><span class="${rankCls}">${medal}</span></td>
+      <td><span class="color-pip" style="background:${color}"></span>${r.name}</td>
+      <td><span class="strategy-tag">${r.strategy}</span></td>
+      <td>$${r.bal.toFixed(2)}</td>
+      <td>${r.food}</td>
+      <td>${r.oil}</td>
+      <td>${r.water}</td>
+      <td class="nw">$${r.nw.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('runBtn').addEventListener('click', runSimulation);
+
+resetState(DEFAULT_AGENTS);
+buildLegends(DEFAULT_AGENTS);
+updateLeaderboard(DEFAULT_AGENTS);
