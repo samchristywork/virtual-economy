@@ -10,6 +10,7 @@ const DEFAULT_AGENTS = [
   { name: 'Frank',   strategy: 'value-investor'   },
   { name: 'Grace',   strategy: 'momentum'         },
   { name: 'Henry',   strategy: 'trend-follower'   },
+  { name: 'Iris',    strategy: 'mean-reversion'   },
 ];
 
 const AGENT_COLORS = {
@@ -21,6 +22,7 @@ const AGENT_COLORS = {
   Frank:   '#14b8a6',
   Grace:   '#eab308',
   Henry:   '#6366f1',
+  Iris:    '#ec4899',
 };
 
 const ASSET_COLORS = { FOOD: '#22c55e', OIL: '#f97316', WATER: '#3b82f6' };
@@ -299,6 +301,30 @@ function strategyTrendFollower(name) {
   }
 }
 
+// Buys when price is >10% below its historical average; sells when >10% above.
+function strategyMeanReversion(name) {
+  for (const asset of ASSETS) {
+    const h = state.priceHistory.filter(p => p.asset === asset);
+    if (h.length < 3) continue;
+    const avg     = h.reduce((s, p) => s + p.avg_price, 0) / h.length;
+    const current = h.at(-1).avg_price;
+
+    if (current < avg * 0.9) {
+      const cheap = othersListings(name)
+        .filter(l => l.asset === asset)
+        .sort((a, b) => a.price_per_share - b.price_per_share);
+      for (const listing of cheap) {
+        const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+        if (maxQty <= 0) break;
+        buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+      }
+    } else if (current > avg * 1.1) {
+      const qty = getHolding(name, asset);
+      if (qty > 0) createListing(name, asset, qty, +(current * 0.99).toFixed(2));
+    }
+  }
+}
+
 const STRATEGIES = {
   'chaos':          strategyChaos,
   'flipper':        strategyFlipper,
@@ -307,9 +333,10 @@ const STRATEGIES = {
   'sniper':         strategySniper,
   'undercut':       strategyUndercut,
   'value-investor': strategyValueInvestor,
-  'panic-sell':      strategyPanicSell,
-  'buy-everything':  strategyBuyEverything,
-  'trend-follower':  strategyTrendFollower,
+  'panic-sell':     strategyPanicSell,
+  'buy-everything': strategyBuyEverything,
+  'trend-follower': strategyTrendFollower,
+  'mean-reversion': strategyMeanReversion,
 };
 
 let running = false;
