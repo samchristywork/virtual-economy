@@ -358,6 +358,105 @@ function buildLegends(agents) {
   ).join('');
 }
 
+function drawLineChart(canvas, datasets, xMax) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const PAD = { top: 24, right: 16, bottom: 34, left: 52 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  // Compute range across all datasets
+  let yMin = Infinity, yMax = -Infinity;
+  for (const ds of datasets) {
+    for (const [, v] of ds.data) {
+      if (v < yMin) yMin = v;
+      if (v > yMax) yMax = v;
+    }
+  }
+  if (!isFinite(yMin)) { yMin = 0; yMax = 100; }
+  if (yMin === yMax)   { yMin = Math.max(0, yMin - 1); yMax += 1; }
+  const pad = (yMax - yMin) * 0.05;
+  yMin = Math.max(0, yMin - pad);
+  yMax += pad;
+
+  const toX = x => PAD.left + (x / Math.max(xMax, 1)) * cW;
+  const toY = y => PAD.top + cH - ((y - yMin) / (yMax - yMin)) * cH;
+
+  // Grid lines
+  const yTicks = 5;
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#9ca3af';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'right';
+  for (let t = 0; t <= yTicks; t++) {
+    const v   = yMin + (yMax - yMin) * (t / yTicks);
+    const y   = toY(v);
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
+    ctx.fillText(v < 100 ? v.toFixed(1) : v.toFixed(0), PAD.left - 5, y + 3);
+  }
+
+  // X-axis labels
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#9ca3af';
+  const xStep = Math.ceil(xMax / 6);
+  for (let x = 0; x <= xMax; x += xStep) {
+    ctx.fillText(x, toX(x), PAD.top + cH + 14);
+  }
+  if (xMax % xStep !== 0) ctx.fillText(xMax, toX(xMax), PAD.top + cH + 14);
+
+  // Axes
+  ctx.strokeStyle = '#d1d5db';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD.left, PAD.top);
+  ctx.lineTo(PAD.left, PAD.top + cH);
+  ctx.lineTo(PAD.left + cW, PAD.top + cH);
+  ctx.stroke();
+
+  // Data lines
+  for (const ds of datasets) {
+    if (!ds.data.length) continue;
+    ctx.strokeStyle = ds.color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    let first = true;
+    for (const [x, y] of ds.data) {
+      const px = toX(x), py = toY(Math.max(yMin, Math.min(yMax, y)));
+      first ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      first = false;
+    }
+    ctx.stroke();
+  }
+}
+
+function drawPriceChart(xMax) {
+  const canvas = document.getElementById('priceChart');
+  const datasets = ASSETS.map(asset => ({
+    color: ASSET_COLORS[asset],
+    data: state.priceHistory
+      .filter(p => p.asset === asset)
+      .map(p => [p.iteration, p.avg_price]),
+  }));
+  drawLineChart(canvas, datasets, xMax);
+}
+
+function drawNwChart(agents, xMax) {
+  const canvas = document.getElementById('nwChart');
+  const datasets = agents.map(a => ({
+    color: AGENT_COLORS[a.name] ?? '#999',
+    data: state.nwHistory
+      .filter(n => n.name === a.name)
+      .map(n => [n.iteration, n.nw]),
+  }));
+  drawLineChart(canvas, datasets, xMax);
+}
+
 function updateLeaderboard(agents) {
   const prices = {};
   for (const asset of ASSETS) {
@@ -400,4 +499,6 @@ document.getElementById('runBtn').addEventListener('click', runSimulation);
 
 resetState(DEFAULT_AGENTS);
 buildLegends(DEFAULT_AGENTS);
+drawPriceChart(30);
+drawNwChart(DEFAULT_AGENTS, 30);
 updateLeaderboard(DEFAULT_AGENTS);
