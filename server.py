@@ -483,6 +483,9 @@ class MarketHandler(BaseHTTPRequestHandler):
                     DELETE FROM users;
                 """)
                 conn.commit()
+            except Exception as e:
+                send_error(self, 500, str(e))
+                return
             finally:
                 conn.close()
         init_db()
