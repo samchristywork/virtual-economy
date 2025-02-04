@@ -45,6 +45,7 @@ function createState() {
     nwHistory: [],          // { iteration, name, nw }
     nextId: 1,
     lastSnapshotTxIdx: 0,
+    lastLogTxIdx: 0,
   };
 }
 
@@ -440,7 +441,7 @@ async function runSimulation() {
     drawPriceChart(iterations);
     drawNwChart(agents, iterations);
     updateLeaderboard(agents);
-    logIteration(i, agents);
+    logIteration(i);
 
     await new Promise(r => setTimeout(r, 16));
   }
@@ -451,9 +452,10 @@ async function runSimulation() {
   running = false;
 }
 
-function logIteration(i, agents) {
+function logIteration(i) {
   const el = document.getElementById('log');
-  const txs = state.transactions.slice(-agents.length * 4);
+  const txs = state.transactions.slice(state.lastLogTxIdx);
+  state.lastLogTxIdx = state.transactions.length;
   if (!txs.length) return;
   const lines = txs.map(t =>
     `iter ${i.toString().padStart(3)} | ${t.buyer.padEnd(7)} bought ${t.qty.toString().padStart(3)}x ${t.asset.padEnd(5)} @ $${t.price.toFixed(2)} from ${t.seller}`
