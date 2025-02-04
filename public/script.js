@@ -12,6 +12,7 @@ const DEFAULT_AGENTS = [
   { name: 'Henry',   strategy: 'trend-follower'   },
   { name: 'Iris',    strategy: 'mean-reversion'   },
   { name: 'Jack',    strategy: 'scalper'          },
+  { name: 'Kate',    strategy: 'contrarian'       },
 ];
 
 const AGENT_COLORS = {
@@ -25,6 +26,7 @@ const AGENT_COLORS = {
   Henry:   '#6366f1',
   Iris:    '#ec4899',
   Jack:    '#84cc16',
+  Kate:    '#06b6d4',
 };
 
 const ASSET_COLORS = { FOOD: '#22c55e', OIL: '#f97316', WATER: '#3b82f6' };
@@ -340,6 +342,31 @@ function strategyScalper(name) {
   }
 }
 
+// Sells the most-listed asset by volume; buys the least-listed.
+function strategyContrarian(name) {
+  const avail = othersListings(name);
+  if (!avail.length) return;
+
+  const vol = Object.fromEntries(ASSETS.map(a => [a, 0]));
+  for (const l of avail) vol[l.asset] += l.quantity;
+  const sorted = Object.entries(vol).sort((a, b) => a[1] - b[1]);
+  const least  = sorted[0][0];
+  const most   = sorted.at(-1)[0];
+
+  const sellQty = getHolding(name, most);
+  if (sellQty > 0) {
+    const ap = avail.filter(l => l.asset === most).map(l => l.price_per_share);
+    createListing(name, most, sellQty, ap.length ? +(Math.min(...ap) * 0.99).toFixed(2) : 1);
+  }
+
+  const cheap = avail.filter(l => l.asset === least).sort((a, b) => a.price_per_share - b.price_per_share);
+  for (const listing of cheap) {
+    const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+    if (maxQty <= 0) break;
+    buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+  }
+}
+
 const STRATEGIES = {
   'chaos':          strategyChaos,
   'flipper':        strategyFlipper,
@@ -353,6 +380,7 @@ const STRATEGIES = {
   'trend-follower': strategyTrendFollower,
   'mean-reversion': strategyMeanReversion,
   'scalper':        strategyScalper,
+  'contrarian':     strategyContrarian,
 };
 
 let running = false;
