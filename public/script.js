@@ -199,9 +199,12 @@ function strategyHoarder(name) {
 function strategyMomentum(name) {
   const avail = othersListings(name);
   if (!avail.length) return;
-  const vol = {};
-  for (const l of avail) vol[l.asset] = (vol[l.asset] ?? 0) + l.quantity;
-  const top = Object.entries(vol).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const deltas = {};
+  for (const asset of ASSETS) {
+    const h = state.priceHistory.filter(p => p.asset === asset).slice(-3);
+    if (h.length >= 2) deltas[asset] = h.at(-1).avg_price - h[0].avg_price;
+  }
+  const top = Object.entries(deltas).filter(([, d]) => d > 0).sort((a, b) => b[1] - a[1])[0]?.[0];
   if (!top) return;
   const targets = avail.filter(l => l.asset === top).sort((a, b) => a.price_per_share - b.price_per_share);
   for (const listing of targets) {
