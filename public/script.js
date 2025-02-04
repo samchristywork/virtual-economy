@@ -13,6 +13,7 @@ const DEFAULT_AGENTS = [
   { name: 'Iris',    strategy: 'mean-reversion'   },
   { name: 'Jack',    strategy: 'scalper'          },
   { name: 'Kate',    strategy: 'contrarian'       },
+  { name: 'Leo',     strategy: 'hodler'           },
 ];
 
 const AGENT_COLORS = {
@@ -27,6 +28,7 @@ const AGENT_COLORS = {
   Iris:    '#ec4899',
   Jack:    '#84cc16',
   Kate:    '#06b6d4',
+  Leo:     '#f43f5e',
 };
 
 const ASSET_COLORS = { FOOD: '#22c55e', OIL: '#f97316', WATER: '#3b82f6' };
@@ -367,6 +369,16 @@ function strategyContrarian(name) {
   }
 }
 
+// Buys the cheapest available units across all assets and never sells.
+function strategyHodler(name) {
+  const listings = othersListings(name).sort((a, b) => a.price_per_share - b.price_per_share);
+  for (const listing of listings) {
+    const maxQty = Math.floor(getBalance(name) / (listing.price_per_share * 1.005));
+    if (maxQty <= 0) break;
+    buyListing(listing.id, name, Math.min(maxQty, listing.quantity));
+  }
+}
+
 const STRATEGIES = {
   'chaos':          strategyChaos,
   'flipper':        strategyFlipper,
@@ -381,6 +393,7 @@ const STRATEGIES = {
   'mean-reversion': strategyMeanReversion,
   'scalper':        strategyScalper,
   'contrarian':     strategyContrarian,
+  'hodler':         strategyHodler,
 };
 
 let running = false;
