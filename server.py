@@ -521,12 +521,21 @@ class MarketHandler(BaseHTTPRequestHandler):
         with db_lock:
             conn = get_db()
             try:
-                last_row = conn.execute(
-                    "SELECT MAX(recorded_at) AS ts FROM price_history"
+                last_iter_row = conn.execute(
+                    "SELECT MAX(iteration) AS iter FROM price_history"
                 ).fetchone()
-                last_ts = last_row["ts"]
+                last_iter = last_iter_row["iter"]
 
                 # Weighted average of transactions since the previous snapshot
+                if last_iter is not None:
+                    ts_row = conn.execute(
+                        "SELECT recorded_at FROM price_history WHERE iteration = ? LIMIT 1",
+                        (last_iter,)
+                    ).fetchone()
+                    last_ts = ts_row["recorded_at"] if ts_row else None
+                else:
+                    last_ts = None
+
                 if last_ts:
                     tx_rows = conn.execute("""
                         SELECT asset,
