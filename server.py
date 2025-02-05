@@ -67,7 +67,8 @@ def init_db():
             iteration   INTEGER   NOT NULL,
             asset       TEXT      NOT NULL,
             avg_price   REAL      NOT NULL,
-            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (iteration, asset)
         );
 
         CREATE INDEX IF NOT EXISTS idx_price_history ON price_history(iteration, asset);
@@ -557,7 +558,7 @@ class MarketHandler(BaseHTTPRequestHandler):
 
                 for asset, avg_price in prices.items():
                     conn.execute(
-                        "INSERT INTO price_history (iteration, asset, avg_price) VALUES (?, ?, ?)",
+                        "INSERT OR IGNORE INTO price_history (iteration, asset, avg_price) VALUES (?, ?, ?)",
                         (iteration, asset, round(avg_price, 4)),
                     )
                 conn.commit()
