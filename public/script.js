@@ -358,6 +358,7 @@ function strategyContrarian(name) {
   const sorted = Object.entries(vol).sort((a, b) => a[1] - b[1]);
   const least  = sorted[0][0];
   const most   = sorted.at(-1)[0];
+  if (least === most) return;
 
   const sellQty = getHolding(name, most);
   if (sellQty > 0) {
