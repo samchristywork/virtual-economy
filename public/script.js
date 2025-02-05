@@ -64,6 +64,15 @@ function othersListings(name) {
   return state.listings.filter(l => l.seller !== name);
 }
 
+function cancelOwnListings(seller, asset) {
+  const own = state.listings.filter(l => l.seller === seller && l.asset === asset);
+  for (const l of own) {
+    const h = state.holdings.get(seller);
+    h.set(asset, (h.get(asset) ?? 0) + l.quantity);
+  }
+  state.listings = state.listings.filter(l => !(l.seller === seller && l.asset === asset));
+}
+
 function createListing(seller, asset, qty, price) {
   qty = Math.floor(qty);
   if (qty <= 0 || price <= 0) return false;
@@ -230,12 +239,13 @@ function strategySniper(name) {
 function strategyUndercut(name) {
   const others = othersListings(name);
   for (const asset of ASSETS) {
-    const qty = getHolding(name, asset);
-    if (qty <= 0) continue;
     const prices = others.filter(l => l.asset === asset).map(l => l.price_per_share);
     if (!prices.length) continue;
     const minP = Math.min(...prices);
     if (minP <= 0.01) continue;
+    cancelOwnListings(name, asset);
+    const qty = getHolding(name, asset);
+    if (qty <= 0) continue;
     createListing(name, asset, qty, +(minP - 0.01).toFixed(2));
   }
 }
