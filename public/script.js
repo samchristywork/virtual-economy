@@ -33,6 +33,14 @@ const AGENT_COLORS = {
 
 const ASSET_COLORS = { FOOD: '#22c55e', OIL: '#f97316', WATER: '#3b82f6' };
 
+const EXTRA_COLORS = ['#0ea5e9','#d946ef','#fb923c','#a3e635','#38bdf8','#f472b6','#34d399','#fbbf24'];
+function getAgentColor(name) {
+  if (AGENT_COLORS[name]) return AGENT_COLORS[name];
+  const idx = [...name].reduce((s, c) => s + c.charCodeAt(0), 0) % EXTRA_COLORS.length;
+  return EXTRA_COLORS[idx];
+}
+
+let agents = DEFAULT_AGENTS.map(a => ({ ...a }));
 let state;
 
 function createState() {
@@ -426,9 +434,10 @@ async function runSimulation() {
   running = true;
   paused  = false;
 
+  if (!agents.length) { running = false; return; }
   const iterations = Math.max(1, parseInt(document.getElementById('iterations').value) || 30);
-  const agents = DEFAULT_AGENTS;
 
+  setAgentsExpanded(false);
   document.getElementById('runBtn').disabled = true;
   document.getElementById('pauseBtn').disabled = false;
   document.getElementById('pauseBtn').textContent = 'Pause';
@@ -504,7 +513,7 @@ function buildLegends(agents) {
   const nl = document.getElementById('nwLegend');
   nl.innerHTML = agents.map(a =>
     `<span class="legend-item">
-      <span class="legend-swatch" style="background:${AGENT_COLORS[a.name] ?? '#999'}"></span>${a.name}
+      <span class="legend-swatch" style="background:${getAgentColor(a.name)}"></span>${a.name}
     </span>`
   ).join('');
 }
@@ -605,7 +614,7 @@ function drawPriceChart(xMax) {
 function drawNwChart(agents, xMax) {
   const canvas = document.getElementById('nwChart');
   const datasets = agents.map(a => ({
-    color: AGENT_COLORS[a.name] ?? '#999',
+    color: getAgentColor(a.name),
     data: state.nwHistory
       .filter(n => n.name === a.name)
       .map(n => [n.iteration, n.nw]),
@@ -637,7 +646,7 @@ function updateLeaderboard(agents) {
   tbody.innerHTML = rows.map((r, i) => {
     const rankCls = i < 3 ? `rank rank-${i + 1}` : 'rank';
     const medal   = ['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`;
-    const color   = AGENT_COLORS[r.name] ?? '#999';
+    const color   = getAgentColor(r.name);
     return `<tr>
       <td><span class="${rankCls}">${medal}</span></td>
       <td><span class="color-pip" style="background:${color}"></span>${r.name}</td>
@@ -651,6 +660,54 @@ function updateLeaderboard(agents) {
   }).join('');
 }
 
+function renderAgentPanel() {
+  const panel = document.getElementById('agents-panel');
+  if (!agents.length) {
+    panel.innerHTML = '<p class="no-agents">No agents configured.</p>';
+    return;
+  }
+  const stratOpts = Object.keys(STRATEGIES).map(s => `<option value="${s}">${s}</option>`).join('');
+  panel.innerHTML = `<table class="agents-table">
+    <thead><tr><th>Name</th><th>Strategy</th><th></th></tr></thead>
+    <tbody>${agents.map((a, i) => `<tr>
+      <td><span class="color-pip" style="background:${getAgentColor(a.name)}"></span>${a.name}</td>
+      <td><select class="strategy-sel" data-idx="${i}">${
+        Object.keys(STRATEGIES).map(s => `<option value="${s}"${s === a.strategy ? ' selected' : ''}>${s}</option>`).join('')
+      }</select></td>
+      <td><button class="rm-agent-btn" data-idx="${i}">✕</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+  panel.querySelectorAll('.rm-agent-btn').forEach(btn =>
+    btn.addEventListener('click', () => { agents.splice(+btn.dataset.idx, 1); renderAgentPanel(); })
+  );
+  panel.querySelectorAll('.strategy-sel').forEach(sel =>
+    sel.addEventListener('change', () => { agents[+sel.dataset.idx].strategy = sel.value; })
+  );
+}
+
+function initAgentControls() {
+  const stratSel = document.getElementById('newAgentStrategy');
+  stratSel.innerHTML = Object.keys(STRATEGIES).map(s => `<option value="${s}">${s}</option>`).join('');
+  document.getElementById('addAgentBtn').addEventListener('click', () => {
+    const inp = document.getElementById('newAgentName');
+    const name = inp.value.trim();
+    if (!name) return;
+    if (agents.find(a => a.name === name)) return;
+    agents.push({ name, strategy: stratSel.value });
+    inp.value = '';
+    renderAgentPanel();
+  });
+}
+
+function setAgentsExpanded(open) {
+  document.getElementById('agents-body').hidden = !open;
+  document.getElementById('agentsChevron').textContent = open ? '▼' : '▶';
+}
+
+document.getElementById('agentsToggle').addEventListener('click', () =>
+  setAgentsExpanded(document.getElementById('agents-body').hidden)
+);
+
 document.getElementById('runBtn').addEventListener('click', runSimulation);
 document.getElementById('pauseBtn').addEventListener('click', () => {
   if (!running) return;
@@ -658,8 +715,10 @@ document.getElementById('pauseBtn').addEventListener('click', () => {
   document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
 });
 
-resetState(DEFAULT_AGENTS);
-buildLegends(DEFAULT_AGENTS);
+renderAgentPanel();
+initAgentControls();
+resetState(agents);
+buildLegends(agents);
 drawPriceChart(30);
-drawNwChart(DEFAULT_AGENTS, 30);
-updateLeaderboard(DEFAULT_AGENTS);
+drawNwChart(agents, 30);
+updateLeaderboard(agents);
