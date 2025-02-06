@@ -54,6 +54,18 @@ h2 { font-size: 1rem; font-weight: 600; color: #555; margin-bottom: 12px; }
 }
 #runBtn:hover:not(:disabled) { background: #2563eb; }
 #runBtn:disabled { background: #93c5fd; cursor: default; }
+#pauseBtn {
+  padding: 8px 20px;
+  background: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+#pauseBtn:hover:not(:disabled) { background: #4b5563; }
+#pauseBtn:disabled { background: #d1d5db; cursor: default; }
 
 .card {
   background: white;

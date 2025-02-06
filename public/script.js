@@ -412,15 +412,26 @@ const STRATEGIES = {
 };
 
 let running = false;
+let paused  = false;
+
+function waitWhilePaused() {
+  return new Promise(resolve => {
+    const check = () => paused ? setTimeout(check, 50) : resolve();
+    check();
+  });
+}
 
 async function runSimulation() {
   if (running) return;
   running = true;
+  paused  = false;
 
   const iterations = Math.max(1, parseInt(document.getElementById('iterations').value) || 30);
   const agents = DEFAULT_AGENTS;
 
   document.getElementById('runBtn').disabled = true;
+  document.getElementById('pauseBtn').disabled = false;
+  document.getElementById('pauseBtn').textContent = 'Pause';
   document.getElementById('log').textContent = '';
 
   resetState(agents);
@@ -454,12 +465,15 @@ async function runSimulation() {
     updateLeaderboard(agents);
     logIteration(i);
 
+    await waitWhilePaused();
     await new Promise(r => setTimeout(r, 16));
   }
 
   document.getElementById('progress-text').textContent =
     `Done — ${iterations} iterations, ${agents.length} agents`;
   document.getElementById('runBtn').disabled = false;
+  document.getElementById('pauseBtn').disabled = true;
+  document.getElementById('pauseBtn').textContent = 'Pause';
   running = false;
 }
 
@@ -638,6 +652,11 @@ function updateLeaderboard(agents) {
 }
 
 document.getElementById('runBtn').addEventListener('click', runSimulation);
+document.getElementById('pauseBtn').addEventListener('click', () => {
+  if (!running) return;
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+});
 
 resetState(DEFAULT_AGENTS);
 buildLegends(DEFAULT_AGENTS);
