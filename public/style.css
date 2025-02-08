@@ -34,6 +34,7 @@ h2 { font-size: 1rem; font-weight: 600; color: #555; margin-bottom: 12px; }
   align-items: center;
   gap: 6px;
 }
+#speed { width: 80px; cursor: pointer; accent-color: #3b82f6; }
 #iterations {
   width: 64px;
   padding: 5px 8px;

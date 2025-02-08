@@ -475,7 +475,8 @@ async function runSimulation() {
     logIteration(i);
 
     await waitWhilePaused();
-    await new Promise(r => setTimeout(r, 16));
+    const delay = Math.round((1 - document.getElementById('speed').value / 100) ** 2 * 500);
+    await new Promise(r => setTimeout(r, delay));
   }
 
   document.getElementById('progress-text').textContent =
