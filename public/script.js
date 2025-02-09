@@ -530,6 +530,16 @@ function buildLegends(agents) {
   vl.innerHTML = pl.innerHTML;
 }
 
+function chartTheme() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  return {
+    bg:    dark ? '#1e293b' : '#fff',
+    grid:  dark ? '#334155' : '#e5e7eb',
+    label: dark ? '#64748b' : '#9ca3af',
+    axis:  dark ? '#475569' : '#d1d5db',
+  };
+}
+
 function drawLineChart(canvas, datasets, xMax) {
   const dpr = window.devicePixelRatio || 1;
   const W   = canvas.clientWidth  || canvas.width;
@@ -542,8 +552,9 @@ function drawLineChart(canvas, datasets, xMax) {
   const cW = W - PAD.left - PAD.right;
   const cH = H - PAD.top - PAD.bottom;
 
+  const t = chartTheme();
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = t.bg;
   ctx.fillRect(0, 0, W, H);
 
   // Compute range across all datasets
@@ -565,13 +576,13 @@ function drawLineChart(canvas, datasets, xMax) {
 
   // Grid lines
   const yTicks = 5;
-  ctx.strokeStyle = '#e5e7eb';
+  ctx.strokeStyle = t.grid;
   ctx.lineWidth = 1;
-  ctx.fillStyle = '#9ca3af';
+  ctx.fillStyle = t.label;
   ctx.font = '10px system-ui';
   ctx.textAlign = 'right';
-  for (let t = 0; t <= yTicks; t++) {
-    const v   = yMin + (yMax - yMin) * (t / yTicks);
+  for (let t2 = 0; t2 <= yTicks; t2++) {
+    const v   = yMin + (yMax - yMin) * (t2 / yTicks);
     const y   = toY(v);
     ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
     ctx.fillText(v < 100 ? v.toFixed(1) : v.toFixed(0), PAD.left - 5, y + 3);
@@ -579,7 +590,7 @@ function drawLineChart(canvas, datasets, xMax) {
 
   // X-axis labels
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#9ca3af';
+  ctx.fillStyle = t.label;
   const xStep = Math.ceil(xMax / 6);
   for (let x = 0; x <= xMax; x += xStep) {
     ctx.fillText(x, toX(x), PAD.top + cH + 14);
@@ -587,7 +598,7 @@ function drawLineChart(canvas, datasets, xMax) {
   if (xMax % xStep !== 0) ctx.fillText(xMax, toX(xMax), PAD.top + cH + 14);
 
   // Axes
-  ctx.strokeStyle = '#d1d5db';
+  ctx.strokeStyle = t.axis;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(PAD.left, PAD.top);
@@ -787,6 +798,21 @@ function setAgentsExpanded(open) {
 document.getElementById('agentsToggle').addEventListener('click', () =>
   setAgentsExpanded(document.getElementById('agents-body').hidden)
 );
+
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? '' : 'dark';
+  document.getElementById('themeBtn').textContent = dark ? 'Dark Mode' : 'Light Mode';
+  localStorage.setItem('theme', dark ? '' : 'dark');
+  const iters = parseInt(document.getElementById('iterations').value) || 30;
+  drawPriceChart(iters);
+  drawNwChart(agents, iters);
+  drawVolumeChart(iters);
+});
+if (localStorage.getItem('theme') === 'dark') {
+  document.documentElement.dataset.theme = 'dark';
+  document.getElementById('themeBtn').textContent = 'Light Mode';
+}
 
 document.getElementById('runBtn').addEventListener('click', runSimulation);
 document.getElementById('pauseBtn').addEventListener('click', () => {
