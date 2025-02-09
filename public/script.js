@@ -50,6 +50,7 @@ function createState() {
     listings: [],           // { id, seller, asset, quantity, price_per_share }
     transactions: [],       // { buyer, seller, asset, qty, price, total, fee }
     priceHistory: [],       // { iteration, asset, avg_price }
+    volumeHistory: [],      // { iteration, asset, volume }
     nwHistory: [],          // { iteration, name, nw }
     nextId: 1,
     lastSnapshotTxIdx: 0,
@@ -149,6 +150,11 @@ function recordPriceSnapshot(iteration) {
 
   for (const [asset, p] of Object.entries(prices)) {
     state.priceHistory.push({ iteration, asset, avg_price: +p.toFixed(4) });
+  }
+
+  for (const asset of ASSETS) {
+    const vol = newTxs.filter(t => t.asset === asset).reduce((s, t) => s + t.qty, 0);
+    state.volumeHistory.push({ iteration, asset, volume: vol });
   }
 }
 
@@ -449,6 +455,7 @@ async function runSimulation() {
   buildLegends(agents);
   drawPriceChart(iterations);
   drawNwChart(agents, iterations);
+  drawVolumeChart(iterations);
   updateLeaderboard(agents);
 
   for (let i = 1; i <= iterations; i++) {
@@ -472,6 +479,7 @@ async function runSimulation() {
     drawPriceChart(iterations);
     drawNwChart(agents, iterations);
     updateLeaderboard(agents);
+    drawVolumeChart(iterations);
     logIteration(i);
 
     await waitWhilePaused();
@@ -517,6 +525,9 @@ function buildLegends(agents) {
       <span class="legend-swatch" style="background:${getAgentColor(a.name)}"></span>${a.name}
     </span>`
   ).join('');
+
+  const vl = document.getElementById('volumeLegend');
+  vl.innerHTML = pl.innerHTML;
 }
 
 function drawLineChart(canvas, datasets, xMax) {
@@ -627,6 +638,18 @@ function drawNwChart(agents, xMax) {
   drawLineChart(canvas, datasets, xMax);
 }
 
+function drawVolumeChart(xMax) {
+  const canvas = document.getElementById('volumeChart');
+  const datasets = ASSETS.map(asset => ({
+    color: ASSET_COLORS[asset],
+    label: asset,
+    data: state.volumeHistory
+      .filter(v => v.asset === asset)
+      .map(v => [v.iteration, v.volume]),
+  }));
+  drawLineChart(canvas, datasets, xMax);
+}
+
 function updateLeaderboard(agents) {
   const prices = {};
   for (const asset of ASSETS) {
@@ -713,7 +736,7 @@ function initChartTooltips() {
     tip.innerHTML =
       `<div class="tip-iter">Iteration ${iter}</div>` +
       rows.map(r =>
-        `<div class="tip-row"><span class="tip-dot" style="background:${r.color}"></span>${r.label}: ${isCurrency ? '$' : ''}${r.value.toFixed(2)}</div>`
+        `<div class="tip-row"><span class="tip-dot" style="background:${r.color}"></span>${r.label}: ${isCurrency ? '$' + r.value.toFixed(2) : Math.round(r.value)}</div>`
       ).join('');
     tip.hidden = false;
     const vw = window.innerWidth, vh = window.innerHeight;
@@ -751,8 +774,9 @@ function initChartTooltips() {
     });
   }
 
-  attach('priceChart', true);
-  attach('nwChart',    true);
+  attach('priceChart',  true);
+  attach('nwChart',     true);
+  attach('volumeChart', false);
 }
 
 function setAgentsExpanded(open) {
@@ -778,4 +802,5 @@ resetState(agents);
 buildLegends(agents);
 drawPriceChart(30);
 drawNwChart(agents, 30);
+drawVolumeChart(30);
 updateLeaderboard(agents);
