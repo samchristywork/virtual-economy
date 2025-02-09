@@ -480,7 +480,7 @@ async function runSimulation() {
   }
 
   document.getElementById('progress-text').textContent =
-    `Done — ${iterations} iterations, ${agents.length} agents`;
+    `Done - ${iterations} iterations, ${agents.length} agents`;
   document.getElementById('runBtn').disabled = false;
   document.getElementById('pauseBtn').disabled = true;
   document.getElementById('pauseBtn').textContent = 'Pause';
@@ -599,12 +599,15 @@ function drawLineChart(canvas, datasets, xMax) {
     }
     ctx.stroke();
   }
+
+  canvas._hitData = { datasets, xMax, PAD: { ...PAD }, W, H };
 }
 
 function drawPriceChart(xMax) {
   const canvas = document.getElementById('priceChart');
   const datasets = ASSETS.map(asset => ({
     color: ASSET_COLORS[asset],
+    label: asset,
     data: state.priceHistory
       .filter(p => p.asset === asset)
       .map(p => [p.iteration, p.avg_price]),
@@ -616,6 +619,7 @@ function drawNwChart(agents, xMax) {
   const canvas = document.getElementById('nwChart');
   const datasets = agents.map(a => ({
     color: getAgentColor(a.name),
+    label: a.name,
     data: state.nwHistory
       .filter(n => n.name === a.name)
       .map(n => [n.iteration, n.nw]),
@@ -700,6 +704,57 @@ function initAgentControls() {
   });
 }
 
+function initChartTooltips() {
+  const tip = document.getElementById('chart-tooltip');
+
+  function hide() { tip.hidden = true; }
+
+  function show(e, iter, rows, isCurrency) {
+    tip.innerHTML =
+      `<div class="tip-iter">Iteration ${iter}</div>` +
+      rows.map(r =>
+        `<div class="tip-row"><span class="tip-dot" style="background:${r.color}"></span>${r.label}: ${isCurrency ? '$' : ''}${r.value.toFixed(2)}</div>`
+      ).join('');
+    tip.hidden = false;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let left = e.clientX + 14, top = e.clientY - 14;
+    if (left + 160 > vw) left = e.clientX - 160;
+    if (top + tip.offsetHeight > vh) top = vh - tip.offsetHeight - 4;
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+  }
+
+  function attach(canvasId, isCurrency) {
+    const canvas = document.getElementById(canvasId);
+    canvas.addEventListener('mouseleave', hide);
+    canvas.addEventListener('mousemove', e => {
+      const d = canvas._hitData;
+      if (!d) return hide();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const { PAD, W, xMax, datasets } = d;
+      const cW = W - PAD.left - PAD.right;
+      if (mx < PAD.left || mx > PAD.left + cW) return hide();
+
+      const xFrac = (mx - PAD.left) / cW;
+      const allX = [...new Set(datasets.flatMap(ds => ds.data.map(([x]) => x)))].sort((a, b) => a - b);
+      if (!allX.length) return hide();
+      const nearIter = allX.reduce((b, x) => Math.abs(x - xFrac * xMax) < Math.abs(b - xFrac * xMax) ? x : b, allX[0]);
+
+      const rows = datasets.map(ds => {
+        const pt = ds.data.find(([x]) => x === nearIter);
+        return pt ? { label: ds.label, color: ds.color, value: pt[1] } : null;
+      }).filter(Boolean);
+
+      if (!rows.length) return hide();
+      show(e, nearIter, rows, isCurrency);
+    });
+  }
+
+  attach('priceChart', true);
+  attach('nwChart',    true);
+}
+
 function setAgentsExpanded(open) {
   document.getElementById('agents-body').hidden = !open;
   document.getElementById('agentsChevron').textContent = open ? '▼' : '▶';
@@ -718,6 +773,7 @@ document.getElementById('pauseBtn').addEventListener('click', () => {
 
 renderAgentPanel();
 initAgentControls();
+initChartTooltips();
 resetState(agents);
 buildLegends(agents);
 drawPriceChart(30);
