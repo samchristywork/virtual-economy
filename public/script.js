@@ -814,6 +814,40 @@ if (localStorage.getItem('theme') === 'dark') {
   document.getElementById('themeBtn').textContent = 'Light Mode';
 }
 
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const prices = {};
+  for (const asset of ASSETS) {
+    const ap = state.listings.filter(l => l.asset === asset).map(l => l.price_per_share);
+    prices[asset] = ap.length
+      ? Math.min(...ap)
+      : ([...state.priceHistory].reverse().find(p => p.asset === asset)?.avg_price ?? 0);
+  }
+  const leaderboard = [...state.users.keys()].map(name => {
+    const bal  = getBalance(name);
+    const holdings = Object.fromEntries(ASSETS.map(a => [a, getHolding(name, a)]));
+    const nw   = bal + ASSETS.reduce((s, a) => s + holdings[a] * (prices[a] ?? 0), 0);
+    const ag   = agents.find(a => a.name === name);
+    return { name, strategy: ag?.strategy ?? '', balance: bal, holdings, netWorth: +nw.toFixed(2) };
+  }).sort((a, b) => b.netWorth - a.netWorth);
+
+  const payload = {
+    exportedAt:   new Date().toISOString(),
+    agents:       agents,
+    priceHistory: state.priceHistory,
+    volumeHistory: state.volumeHistory,
+    nwHistory:    state.nwHistory,
+    leaderboard,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `simulation-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
 document.getElementById('runBtn').addEventListener('click', runSimulation);
 document.getElementById('pauseBtn').addEventListener('click', () => {
   if (!running) return;

@@ -83,6 +83,19 @@ h2 { font-size: 1rem; font-weight: 600; color: #555; margin-bottom: 12px; }
 }
 #pauseBtn:hover:not(:disabled) { background: #4b5563; }
 #pauseBtn:disabled { background: #d1d5db; cursor: default; }
+#exportBtn {
+  padding: 8px 20px;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+#exportBtn:hover { border-color: #9ca3af; color: #374151; }
+[data-theme="dark"] #exportBtn { border-color: #475569; color: #94a3b8; }
+[data-theme="dark"] #exportBtn:hover { border-color: #64748b; color: #e2e8f0; }
 
 .card {
   background: white;
