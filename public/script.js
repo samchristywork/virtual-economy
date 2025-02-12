@@ -795,6 +795,89 @@ function setAgentsExpanded(open) {
   document.getElementById('agentsChevron').textContent = open ? '▼' : '▶';
 }
 
+function runOneSilent(agentList, iterations) {
+  resetState(agentList);
+  for (let i = 1; i <= iterations; i++) {
+    for (const agent of agentList) {
+      const fn = STRATEGIES[agent.strategy];
+      if (fn) fn(agent.name);
+    }
+    for (const agent of agentList) {
+      for (const asset of ASSETS) consume(agent.name, asset, Math.floor(Math.random() * 3) + 1);
+    }
+    recordPriceSnapshot(i);
+  }
+  const prices = {};
+  for (const asset of ASSETS) {
+    const ap = state.listings.filter(l => l.asset === asset).map(l => l.price_per_share);
+    prices[asset] = ap.length
+      ? Math.min(...ap)
+      : ([...state.priceHistory].reverse().find(p => p.asset === asset)?.avg_price ?? 0);
+  }
+  return agentList.map(a => ({
+    name: a.name,
+    strategy: a.strategy,
+    nw: getBalance(a.name) + ASSETS.reduce((s, asset) => s + getHolding(a.name, asset) * (prices[asset] ?? 0), 0),
+  }));
+}
+
+async function runBatch() {
+  if (running) return;
+  if (!agents.length) return;
+  running = true;
+  const n          = Math.max(2, parseInt(document.getElementById('batchRuns').value) || 20);
+  const iterations = Math.max(1, parseInt(document.getElementById('iterations').value) || 30);
+
+  document.getElementById('batchBtn').disabled = true;
+  document.getElementById('runBtn').disabled   = true;
+  document.getElementById('progress-text').textContent = 'Running batch…';
+
+  const stratNw   = {};
+  const stratWins = {};
+  for (const a of agents) { stratNw[a.strategy] = []; stratWins[a.strategy] = 0; }
+
+  for (let r = 0; r < n; r++) {
+    const results = runOneSilent(agents, iterations);
+    const winner  = results.reduce((b, x) => x.nw > b.nw ? x : b, results[0]);
+    stratWins[winner.strategy] = (stratWins[winner.strategy] ?? 0) + 1;
+    for (const { strategy, nw } of results) {
+      if (!stratNw[strategy]) stratNw[strategy] = [];
+      stratNw[strategy].push(nw);
+    }
+    if (r % 5 === 0) {
+      document.getElementById('progress-text').textContent = `Batch run ${r + 1} / ${n}`;
+      await new Promise(res => setTimeout(res, 0));
+    }
+  }
+
+  const strategies = [...new Set(agents.map(a => a.strategy))];
+  const rows = strategies.map(s => {
+    const nws  = stratNw[s] ?? [];
+    const mean = nws.reduce((a, v) => a + v, 0) / (nws.length || 1);
+    const vari = nws.reduce((a, v) => a + (v - mean) ** 2, 0) / (nws.length || 1);
+    return { strategy: s, wins: stratWins[s] ?? 0, winRate: ((stratWins[s] ?? 0) / n * 100), mean, sd: Math.sqrt(vari) };
+  }).sort((a, b) => b.winRate - a.winRate);
+
+  const wrap = document.getElementById('stats-wrap');
+  wrap.innerHTML = `<p class="stats-meta">${n} runs × ${iterations} iterations</p>
+  <table class="stats-table">
+    <thead><tr><th>Strategy</th><th>Wins</th><th>Win Rate</th><th>Avg Net Worth</th><th>Std Dev</th></tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td><span class="strategy-tag">${r.strategy}</span></td>
+      <td>${r.wins}</td>
+      <td>${r.winRate.toFixed(1)}%</td>
+      <td>$${r.mean.toFixed(2)}</td>
+      <td>$${r.sd.toFixed(2)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+  document.getElementById('stats-section').hidden = false;
+
+  document.getElementById('progress-text').textContent = `Batch complete — ${n} runs`;
+  document.getElementById('batchBtn').disabled = false;
+  document.getElementById('runBtn').disabled   = false;
+  running = false;
+}
+
 document.getElementById('agentsToggle').addEventListener('click', () =>
   setAgentsExpanded(document.getElementById('agents-body').hidden)
 );
@@ -849,6 +932,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 });
 
 document.getElementById('runBtn').addEventListener('click', runSimulation);
+document.getElementById('batchBtn').addEventListener('click', runBatch);
 document.getElementById('pauseBtn').addEventListener('click', () => {
   if (!running) return;
   paused = !paused;

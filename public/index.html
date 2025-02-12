@@ -19,6 +19,8 @@
     <button id="runBtn">Run Simulation</button>
     <button id="pauseBtn" disabled>Pause</button>
     <button id="exportBtn">Export JSON</button>
+    <label>Batch: <input id="batchRuns" type="number" value="20" min="2" max="200"></label>
+    <button id="batchBtn">Run Statistics</button>
   </div>
 </div>
 
@@ -56,6 +58,11 @@
   <h2>Trade Volume</h2>
   <canvas id="volumeChart"></canvas>
   <div class="legend" id="volumeLegend"></div>
+</div>
+
+<div class="card" id="stats-section" hidden>
+  <h2>Strategy Statistics</h2>
+  <div id="stats-wrap"></div>
 </div>
 
 <div class="card" id="leaderboard-section">
