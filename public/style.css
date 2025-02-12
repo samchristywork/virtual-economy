@@ -96,6 +96,8 @@ h2 { font-size: 1rem; font-weight: 600; color: #555; margin-bottom: 12px; }
 #exportBtn:hover { border-color: #9ca3af; color: #374151; }
 [data-theme="dark"] #exportBtn { border-color: #475569; color: #94a3b8; }
 [data-theme="dark"] #exportBtn:hover { border-color: #64748b; color: #e2e8f0; }
+#shockChance { width: 48px; padding: 5px 6px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; text-align: center; }
+[data-theme="dark"] #shockChance { background: #0f172a; border-color: #475569; color: #e2e8f0; }
 #batchRuns { width: 56px; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; text-align: center; }
 [data-theme="dark"] #batchRuns { background: #0f172a; border-color: #475569; color: #e2e8f0; }
 #batchBtn {

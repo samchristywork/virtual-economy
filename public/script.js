@@ -472,6 +472,7 @@ async function runSimulation() {
       }
     }
 
+    maybeApplyShock(i, agents);
     recordPriceSnapshot(i);
     recordNwSnapshot(i);
 
@@ -493,6 +494,72 @@ async function runSimulation() {
   document.getElementById('pauseBtn').disabled = true;
   document.getElementById('pauseBtn').textContent = 'Pause';
   running = false;
+}
+
+const SHOCKS = [
+  {
+    name: 'Supply crash',
+    apply(agentList) {
+      const asset = ASSETS[Math.floor(Math.random() * ASSETS.length)];
+      for (const a of agentList) {
+        const h = state.holdings.get(a.name);
+        if (h) h.set(asset, Math.floor((h.get(asset) ?? 0) / 2));
+      }
+      state.listings = state.listings.filter(l => {
+        if (l.asset !== asset) return true;
+        const h = state.holdings.get(l.seller);
+        if (h) h.set(asset, (h.get(asset) ?? 0) + l.quantity);
+        return false;
+      });
+      return `Supply crash: ${asset} holdings halved, listings cancelled`;
+    },
+  },
+  {
+    name: 'Windfall',
+    apply(agentList) {
+      const bonus = 200;
+      for (const a of agentList) {
+        const u = state.users.get(a.name);
+        if (u) u.balance += bonus;
+      }
+      return `Windfall: every agent received $${bonus}`;
+    },
+  },
+  {
+    name: 'Asset boon',
+    apply(agentList) {
+      const asset = ASSETS[Math.floor(Math.random() * ASSETS.length)];
+      const qty = 30;
+      for (const a of agentList) {
+        const h = state.holdings.get(a.name);
+        if (h) h.set(asset, (h.get(asset) ?? 0) + qty);
+      }
+      return `Asset boon: every agent received ${qty} ${asset}`;
+    },
+  },
+  {
+    name: 'Market freeze',
+    apply() {
+      const asset = ASSETS[Math.floor(Math.random() * ASSETS.length)];
+      state.listings = state.listings.filter(l => {
+        if (l.asset !== asset) return true;
+        const h = state.holdings.get(l.seller);
+        if (h) h.set(asset, (h.get(asset) ?? 0) + l.quantity);
+        return false;
+      });
+      return `Market freeze: all ${asset} listings cancelled`;
+    },
+  },
+];
+
+function maybeApplyShock(i, agentList) {
+  if (!document.getElementById('shocksEnabled').checked) return;
+  const pct = parseInt(document.getElementById('shockChance').value) || 15;
+  if (Math.random() * 100 >= pct) return;
+  const shock = SHOCKS[Math.floor(Math.random() * SHOCKS.length)];
+  const msg   = shock.apply(agentList);
+  const el    = document.getElementById('log');
+  el.textContent = `iter ${i.toString().padStart(3)} | *** SHOCK: ${msg} ***\n` + el.textContent;
 }
 
 function logIteration(i) {
