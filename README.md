@@ -2,6 +2,22 @@
 
 ## Overview
 
+Virtual Economy is a browser-based market simulation where autonomous agents
+trade three commodities (FOOD, OIL, and WATER) using a variety of competing
+strategies. The simulation runs entirely in JavaScript, with an optional Python
+backend for persistence and multi-tab synchronization.
+
+Agents are initialized with a cash balance and equal holdings of each asset.
+Each iteration they apply their strategy: buying underpriced listings, posting
+sell orders, hoarding a preferred asset, or reacting to price momentum, while a
+0.5% transaction fee drains liquidity over time. Price history, trade volume,
+and per-agent net worth are tracked across iterations and displayed as live
+charts.
+
+Shock events can be injected mid-simulation to stress-test how strategies
+respond to sudden supply or demand shifts. Batch mode lets you run many trials
+back-to-back and export the results as JSON for further analysis.
+
 ## Features
 
 ## Strategies
