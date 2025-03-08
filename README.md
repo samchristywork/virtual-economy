@@ -36,6 +36,21 @@ back-to-back and export the results as JSON for further analysis.
 
 ## Strategies
 
+| Strategy | Behavior |
+|---|---|
+| chaos | Random buys and sells at arbitrary prices |
+| flipper | Buys the cheapest listing and immediately relists at +25% |
+| hoarder | Accumulates FOOD regardless of price |
+| sniper | Only buys listings priced below a fixed threshold |
+| undercut | Continuously relists all holdings one cent below the market low |
+| value-investor | Buys below the mean listing price; sells above it |
+| momentum | Chases the asset with the strongest recent price trend |
+| trend-follower | Follows the direction of the last price move |
+| mean-reversion | Bets that prices return toward their recent average |
+| scalper | Makes many small trades to capture small spreads |
+| contrarian | Bets against the current momentum |
+| hodler | Never sells |
+
 ## Usage
 
 ## Dependencies
