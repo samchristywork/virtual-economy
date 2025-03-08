@@ -18,6 +18,10 @@ Shock events can be injected mid-simulation to stress-test how strategies
 respond to sudden supply or demand shifts. Batch mode lets you run many trials
 back-to-back and export the results as JSON for further analysis.
 
+<p align="center">
+  <img src="./assets/screenshot.png" />
+</p>
+
 ## Features
 
 ## Strategies
