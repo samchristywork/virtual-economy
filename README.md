@@ -53,6 +53,14 @@ back-to-back and export the results as JSON for further analysis.
 
 ## Usage
 
+Open `public/index.html` directly in a browser for a fully self-contained
+simulation, or run the Python backend and visit `http://localhost:8000` for
+persistent storage:
+
+```
+python3 server.py
+```
+
 ## Dependencies
 
 ## License
