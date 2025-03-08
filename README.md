@@ -24,6 +24,16 @@ back-to-back and export the results as JSON for further analysis.
 
 ## Features
 
+- Multi-agent simulation with 12 built-in trading strategies
+- Live price history, trade volume, and net worth charts
+- Configurable agents: add, remove, or change strategies mid-run
+- Shock events to simulate sudden market disruptions
+- Adjustable simulation speed and pause/resume control
+- Batch trial mode for running many simulations in sequence
+- JSON export of simulation data for offline analysis
+- Dark mode toggle
+- Optional Python/SQLite backend for persistent state
+
 ## Strategies
 
 ## Usage
