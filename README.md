@@ -79,6 +79,12 @@ POST /reset                  Wipe all state
 
 ## Dependencies
 
+```
+python3 (backend only)
+```
+
+The frontend has no build step and no external dependencies.
+
 ## License
 
 This work is licensed under the GNU General Public License version 3 (GPLv3).
