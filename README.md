@@ -61,6 +61,22 @@ persistent storage:
 python3 server.py
 ```
 
+The backend exposes a REST API on port 8000:
+
+```
+GET  /users                  List all users and balances
+GET  /holdings[?user=NAME]   List asset holdings
+GET  /listings               List active sell orders
+GET  /transactions[?user=X]  List executed trades
+GET  /prices/history         Price history by iteration
+POST /users                  Create a user
+POST /listings               Post a sell order
+POST /buy                    Buy from a listing
+POST /consume                Consume (remove) held assets
+POST /prices/snapshot        Record a price snapshot
+POST /reset                  Wipe all state
+```
+
 ## Dependencies
 
 ## License
